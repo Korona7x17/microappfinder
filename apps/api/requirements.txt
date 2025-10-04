@@ -1,0 +1,50 @@
+# FastAPI & Server
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.27
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Redis & Queue
+redis==5.0.1
+rq==1.16.1
+
+# HTTP & Scraping
+httpx==0.26.0
+crawl4ai==0.2.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# API Integrations
+praw==7.7.1  # Reddit API
+requests==2.31.0
+
+# Vector DB (optional)
+qdrant-client==1.7.3
+
+# LLM & AI
+openai==1.12.0
+anthropic==0.18.1
+
+# Utilities
+python-dotenv==1.0.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+tenacity==8.2.3
+
+# Monitoring
+sentry-sdk[fastapi]==1.40.6
+
+# Export
+weasyprint==61.2
+markdown==3.5.2
+
+# Testing
+pytest==8.0.1
+pytest-asyncio==0.23.5
+httpx==0.26.0

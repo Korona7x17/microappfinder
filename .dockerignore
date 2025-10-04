@@ -1,0 +1,39 @@
+# Version control
+.git
+.gitignore
+
+# Environment
+.env
+.env*.local
+
+# Dependencies
+node_modules
+venv
+__pycache__
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Build outputs
+.next
+dist
+build
+
+# Logs
+*.log
+
+# Testing
+.pytest_cache
+.coverage
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Misc
+.DS_Store
+temp
+tmp
