@@ -1,0 +1,481 @@
+openapi: 3.0.3
+info:
+  title: Reddit Pain Point Discovery API
+  description: API for authenticated Reddit pain point search and discovery
+  version: 1.0.0
+  contact:
+    name: MicroAppFinder Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development
+  - url: https://api.microappfinder.com/api
+    description: Production
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user account
+      operationId: registerUser
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid email format or weak password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Authenticate user and receive JWT token
+      operationId: loginUser
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: JWT access token (httponly)
+              schema:
+                type: string
+                example: access_token=eyJhbGc...; HttpOnly; Secure; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      summary: Invalidate current session
+      operationId: logoutUser
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Logout successful
+          headers:
+            Set-Cookie:
+              description: Clear access token cookie
+              schema:
+                type: string
+                example: access_token=; Max-Age=0
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user profile
+      operationId: getCurrentUser
+      tags: [Authentication]
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reddit/search:
+    post:
+      summary: Create new Reddit pain point search run
+      operationId: createRedditSearch
+      tags: [Search]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '201':
+          description: Search run created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchRunCreated'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reddit/runs/{id}:
+    get:
+      summary: Get search run status and metadata
+      operationId: getSearchRunStatus
+      tags: [Search]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Search run identifier
+      responses:
+        '200':
+          description: Search run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchRunStatus'
+        '403':
+          description: Not authorized to access this run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Search run not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reddit/runs/{id}/pain-points:
+    get:
+      summary: Get paginated pain points for search run
+      operationId: getSearchRunPainPoints
+      tags: [Search]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Search run identifier
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number (1-indexed)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+          description: Results per page (max 50)
+      responses:
+        '200':
+          description: Paginated pain points
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPainPoints'
+        '403':
+          description: Not authorized to access this run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Search run not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reddit/dashboard:
+    get:
+      summary: Get user's search history and recent pain points
+      operationId: getUserDashboard
+      tags: [Search]
+      responses:
+        '200':
+          description: User dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDashboard'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from /auth/login (also set as httponly cookie)
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: SecurePass123
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: SecurePass123
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+        token_type:
+          type: string
+          example: bearer
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    SearchRequest:
+      type: object
+      required: [topics, time_range]
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 5
+          example: ["productivity tools", "automation"]
+        time_range:
+          type: string
+          enum: ["24h", "7days", "30days", "90days", "1year", "all"]
+          example: "7days"
+
+    SearchRunCreated:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: ["pending"]
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+
+    SearchRunStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: ["pending", "in_progress", "completed", "failed"]
+        topics:
+          type: array
+          items:
+            type: string
+        time_range:
+          type: string
+          enum: ["24h", "7days", "30days", "90days", "1year", "all"]
+        pain_points_count:
+          type: integer
+          example: 147
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+
+    PainPoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        extracted_text:
+          type: string
+          maxLength: 500
+          example: "Users frustrated with lack of simple time-tracking tool for freelancers"
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.8734
+        sentiment_score:
+          type: number
+          format: float
+          minimum: -1
+          maximum: 1
+          example: -0.42
+        source_reddit_posts:
+          type: array
+          items:
+            type: object
+            properties:
+              reddit_id:
+                type: string
+                example: "t3_abc123"
+              subreddit:
+                type: string
+                example: "freelance"
+              title:
+                type: string
+              url:
+                type: string
+                format: uri
+              deleted:
+                type: boolean
+                description: True if source post deleted on Reddit
+        created_at:
+          type: string
+          format: date-time
+
+    PaginatedPainPoints:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PainPoint'
+        total:
+          type: integer
+          example: 147
+        page:
+          type: integer
+          example: 1
+        pages:
+          type: integer
+          example: 3
+        per_page:
+          type: integer
+          example: 50
+
+    UserDashboard:
+      type: object
+      properties:
+        total_searches:
+          type: integer
+          example: 5
+        recent_runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchRunStatus'
+          maxItems: 10
+        recent_pain_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/PainPoint'
+          maxItems: 20
+          description: Fallback pain points shown when latest search returns zero results
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Invalid credentials
+        detail:
+          type: string
+          nullable: true
+
+tags:
+  - name: Authentication
+    description: User registration and authentication
+  - name: Search
+    description: Reddit pain point search operations
