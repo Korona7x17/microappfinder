@@ -1,0 +1,115 @@
+"""
+T018: RedditPost model
+SQLAlchemy model for temporary Reddit content cache (48h TTL)
+"""
+from sqlalchemy import Column, String, Integer, Boolean, TIMESTAMP, Text, text
+from sqlalchemy.dialects.postgresql import UUID
+from . import Base
+
+
+class RedditPost(Base):
+    """
+    RedditPost model for 48-hour cache of Reddit content
+
+    Storage: Redis (primary), PostgreSQL (metadata backup for deletion sync)
+    Retention: 48 hours max (Reddit ToS compliance)
+
+    ⚠️ COMPLIANCE: Must be purged when:
+    1. expires_at reached (automatic Redis expiry)
+    2. Source post deleted on Reddit (daily deletion sync job)
+    3. Author account deleted (daily deletion sync job)
+    """
+    __tablename__ = "reddit_posts"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        comment="Internal cache ID"
+    )
+
+    # Reddit Identifiers
+    reddit_id = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        index=True,
+        comment="Reddit post ID (e.g., 't3_abc123')"
+    )
+
+    subreddit = Column(
+        String(50),
+        nullable=False,
+        comment="Source subreddit"
+    )
+
+    author = Column(
+        String(50),
+        nullable=True,
+        comment="Post author (null if account deleted)"
+    )
+
+    # Content
+    title = Column(
+        Text,
+        nullable=False,
+        comment="Post title"
+    )
+
+    text = Column(
+        Text,
+        nullable=True,
+        comment="Post body/selftext"
+    )
+
+    url = Column(
+        String(2048),
+        nullable=False,
+        comment="Reddit permalink"
+    )
+
+    # Metrics
+    score = Column(
+        Integer,
+        nullable=False,
+        comment="Upvote count at fetch time"
+    )
+
+    comment_count = Column(
+        Integer,
+        nullable=False,
+        comment="Comment count at fetch time"
+    )
+
+    # Timestamps
+    created_utc = Column(
+        TIMESTAMP,
+        nullable=False,
+        comment="Reddit post creation timestamp"
+    )
+
+    fetched_at = Column(
+        TIMESTAMP,
+        nullable=False,
+        server_default=text("NOW()"),
+        comment="Cache timestamp"
+    )
+
+    expires_at = Column(
+        TIMESTAMP,
+        nullable=False,
+        index=True,
+        comment="TTL expiry (fetched_at + 48h)"
+    )
+
+    # Flags
+    is_nsfw = Column(
+        Boolean,
+        nullable=False,
+        server_default="FALSE",
+        comment="NSFW flag from Reddit"
+    )
+
+    def __repr__(self):
+        return f"<RedditPost(reddit_id={self.reddit_id}, subreddit={self.subreddit}, expires_at={self.expires_at})>"

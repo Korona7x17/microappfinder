@@ -1,0 +1,59 @@
+"""
+T016: Topic model
+SQLAlchemy model for search keywords/phrases
+"""
+from sqlalchemy import Column, String, Integer, TIMESTAMP, text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from . import Base
+
+
+class Topic(Base):
+    """
+    Topic model for search keywords
+
+    Validation: 2-100 chars, alphanumeric + spaces only
+    Retention: Indefinite (aggregated, non-user-content)
+    """
+    __tablename__ = "topics"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        comment="Unique topic identifier"
+    )
+
+    # Data
+    keyword = Column(
+        String(100),
+        nullable=False,
+        index=True,
+        comment="Search term (e.g., 'productivity tools')"
+    )
+
+    # Metadata
+    created_at = Column(
+        TIMESTAMP,
+        nullable=False,
+        server_default=text("NOW()"),
+        comment="First usage timestamp"
+    )
+
+    search_count = Column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        comment="Number of times used in searches"
+    )
+
+    # Relationships
+    search_runs = relationship(
+        "SearchRun",
+        secondary="search_run_topics",
+        back_populates="topics"
+    )
+
+    def __repr__(self):
+        return f"<Topic(id={self.id}, keyword={self.keyword}, search_count={self.search_count})>"

@@ -1,0 +1,68 @@
+"""
+T015: User model
+SQLAlchemy model for authenticated users
+"""
+from sqlalchemy import Column, String, TIMESTAMP, text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from . import Base
+from datetime import datetime
+
+
+class User(Base):
+    """
+    User model for authentication and search ownership
+
+    Retention: Indefinite (until user deletion request)
+    """
+    __tablename__ = "users"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        comment="Unique user identifier"
+    )
+
+    # Authentication
+    email = Column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+        comment="User email address (RFC 5322 format)"
+    )
+
+    hashed_password = Column(
+        String(255),
+        nullable=False,
+        comment="bcrypt hashed password (cost factor 12)"
+    )
+
+    # Timestamps
+    created_at = Column(
+        TIMESTAMP,
+        nullable=False,
+        server_default=text("NOW()"),
+        comment="Account creation timestamp"
+    )
+
+    updated_at = Column(
+        TIMESTAMP,
+        nullable=False,
+        server_default=text("NOW()"),
+        onupdate=datetime.utcnow,
+        comment="Last profile update timestamp"
+    )
+
+    # Relationships
+    search_runs = relationship(
+        "SearchRun",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    def __repr__(self):
+        return f"<User(id={self.id}, email={self.email})>"

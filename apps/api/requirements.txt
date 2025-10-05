@@ -13,6 +13,7 @@ alembic==1.13.1
 # Redis & Queue
 redis==5.0.1
 rq==1.16.1
+rq-scheduler==0.13.1
 
 # HTTP & Scraping
 httpx==0.26.0
@@ -30,6 +31,9 @@ qdrant-client==1.7.3
 # LLM & AI
 openai==1.12.0
 anthropic==0.18.1
+
+# NLP & Text Processing
+textblob==0.17.1
 
 # Utilities
 python-dotenv==1.0.1
