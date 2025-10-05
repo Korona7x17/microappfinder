@@ -2,7 +2,7 @@
 T019: PainPoint model
 SQLAlchemy model for derived pain point aggregates
 """
-from sqlalchemy import Column, Boolean, TIMESTAMP, Text, DECIMAL, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Boolean, TIMESTAMP, Text, String, DECIMAL, ForeignKey, CheckConstraint
 from sqlalchemy.sql import text as sql_text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -61,10 +61,17 @@ class PainPoint(Base):
     )
 
     # Source References
-    source_reddit_post_ids = Column(
+    source_platform = Column(
+        String(20),
+        nullable=False,
+        server_default="'reddit'",
+        comment="Source platform: reddit, hackernews, etc."
+    )
+
+    source_post_ids = Column(
         JSONB,
         nullable=False,
-        comment="Array of RedditPost.reddit_id references (soft reference, no FK)"
+        comment="Array of source post IDs (platform-agnostic, soft reference)"
     )
 
     source_deleted = Column(

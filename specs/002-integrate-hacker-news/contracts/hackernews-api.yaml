@@ -1,0 +1,256 @@
+# Hacker News API Contract (Algolia HN Search API)
+# Internal service contract - NOT a public API endpoint
+
+openapi: 3.0.0
+info:
+  title: Hacker News Provider Service
+  version: 1.0.0
+  description: |
+    Internal service contract for Hacker News integration.
+    This is NOT a public-facing API - it documents the internal HN provider
+    that queries Algolia HN API and normalizes results for unified search.
+
+externalDocs:
+  description: Algolia HN Official API Docs
+  url: https://hn.algolia.com/api
+
+components:
+  schemas:
+    HNItemSchema:
+      type: object
+      description: Raw HN item from Algolia API
+      required:
+        - objectID
+        - created_at_i
+        - title
+        - author
+        - points
+        - num_comments
+      properties:
+        objectID:
+          type: string
+          example: "12345678"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-05T10:30:00.000Z"
+        created_at_i:
+          type: integer
+          description: Unix timestamp
+          example: 1735120200
+        title:
+          type: string
+          example: "Show HN: Built a tool for X"
+        url:
+          type: string
+          nullable: true
+          example: "https://example.com"
+        author:
+          type: string
+          example: "username"
+        points:
+          type: integer
+          example: 150
+        story_text:
+          type: string
+          nullable: true
+          example: "Description of the project..."
+        num_comments:
+          type: integer
+          example: 45
+        _tags:
+          type: array
+          items:
+            type: string
+          example: ["story", "show_hn"]
+
+    UnifiedSearchResult:
+      type: object
+      description: Normalized result for cross-source aggregation
+      required:
+        - id
+        - title
+        - url
+        - source
+        - source_platform
+        - points
+        - comment_count
+        - created_utc
+        - relevance_score
+      properties:
+        id:
+          type: string
+          description: Platform-specific ID
+          example: "12345678"
+        title:
+          type: string
+          example: "Show HN: Built a tool for X"
+        excerpt:
+          type: string
+          nullable: true
+          description: Short text snippet
+          example: "Description of the project..."
+        url:
+          type: string
+          description: HN permalink or external URL
+          example: "https://news.ycombinator.com/item?id=12345678"
+        source:
+          type: string
+          description: Human-readable source attribution
+          example: "Hacker News"
+        source_platform:
+          type: string
+          enum: ["reddit", "hackernews"]
+          example: "hackernews"
+        points:
+          type: integer
+          description: Upvotes/points (mapped from Reddit score)
+          example: 150
+        comment_count:
+          type: integer
+          example: 45
+        created_utc:
+          type: string
+          format: date-time
+          example: "2025-01-05T10:30:00Z"
+        relevance_score:
+          type: number
+          format: float
+          description: Composite score (0-1)
+          example: 0.7542
+
+paths:
+  # Internal service methods (not HTTP endpoints)
+  /internal/hackernews/search:
+    post:
+      summary: Search Hacker News via Algolia API
+      description: |
+        Internal method called by background worker.
+        Queries Algolia HN API, normalizes results, returns list of HNItemSchema.
+      operationId: searchHackerNews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+                - time_range
+              properties:
+                query:
+                  type: string
+                  example: "productivity tools"
+                time_range:
+                  type: string
+                  enum: ["day", "week", "month", "year"]
+                  example: "week"
+                max_results:
+                  type: integer
+                  default: 100
+                  example: 100
+      responses:
+        '200':
+          description: HN items fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HNItemSchema'
+        '500':
+          description: Algolia API error or timeout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Algolia HN API timeout after 500ms"
+
+  /internal/hackernews/normalize:
+    post:
+      summary: Normalize HN item to unified schema
+      description: |
+        Internal method to map HNItemSchema fields to UnifiedSearchResult.
+        Applies source attribution and URL normalization.
+      operationId: normalizeHNItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HNItemSchema'
+      responses:
+        '200':
+          description: Normalized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedSearchResult'
+
+  /internal/hackernews/score:
+    post:
+      summary: Calculate composite score for HN item
+      description: |
+        Internal method using CompositeScorer.
+        Maps HN points→upvotes, applies same weights as Reddit.
+        Formula: 0.3×points + 0.25×comments + 0.25×recency + 0.2×sentiment
+      operationId: scoreHNItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HNItemSchema'
+      responses:
+        '200':
+          description: Score calculated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  composite_score:
+                    type: number
+                    format: float
+                    example: 0.7542
+                  breakdown:
+                    type: object
+                    properties:
+                      upvotes_contribution:
+                        type: number
+                        example: 0.045
+                      comments_contribution:
+                        type: number
+                        example: 0.0225
+                      recency_contribution:
+                        type: number
+                        example: 0.25
+                      sentiment_contribution:
+                        type: number
+                        example: 0.04
+
+# Service Contract Details
+
+# HackerNewsClient
+# - Queries Algolia HN API: https://hn.algolia.com/api/v1/search
+# - Timeout: 500ms (configurable)
+# - Circuit breaker: 3 consecutive failures → skip HN for 5 minutes
+# - No authentication required (public API)
+
+# HNNormalizer
+# - Maps HN fields to unified schema
+# - Constructs HN permalink: https://news.ycombinator.com/item?id={objectID}
+# - Handles missing fields gracefully (url may be null for Ask HN)
+
+# HNScorer
+# - Reuses CompositeScorer from apps/worker/worker/pipeline/scorer.py
+# - Maps: points → score, num_comments → comment_count
+# - Sentiment analysis on title + story_text
+
+# Error Handling
+# - Timeout: Return empty list, log warning
+# - HTTP 429/503: Exponential backoff, circuit breaker after 3 failures
+# - Invalid response: Log error, skip malformed items

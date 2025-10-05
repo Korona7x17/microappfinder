@@ -90,6 +90,9 @@ class SearchRunStatus(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Processing completion time")
     pain_points_count: int = Field(default=0, description="Total pain points extracted")
     error_message: Optional[str] = Field(None, description="Error message if failed")
+    # Feature 002: Multi-source tracking
+    sources_queried: List[str] = Field(default=["reddit"], description="Sources queried (reddit, hackernews, etc.)")
+    hn_items_fetched: Optional[int] = Field(None, description="HackerNews items fetched (null if not queried)")
 
     class Config:
         json_schema_extra = {

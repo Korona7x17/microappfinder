@@ -36,3 +36,39 @@
 - **Scoring**: `0.3*upvotes + 0.25*comments + 0.25*recency + 0.2*sentiment`
 
 **Models**: User, Topic, SearchRun, RedditPost (temp cache), PainPoint (derived aggregate)
+
+### HackerNews Integration for Unified Search (002-integrate-hacker-news)
+**Multi-Source Architecture**:
+- **Parallel Fetching**: Reddit + HackerNews queried simultaneously via RQ jobs
+- **Algolia HN API**: No rate limits, Ask HN focus, min 10 points threshold
+- **48h Cache Pattern**: HackerNewsItem model mirrors RedditPost retention
+- **Cross-Source Deduplication**: URL normalization + 85% semantic similarity (Jaccard)
+- **Unified Aggregation**: Task chaining (reddit_job + hn_job → unified_job)
+- **Circuit Breaker**: Algolia API protection (3 failures → 2min timeout)
+
+**Updated Models**:
+- **HackerNewsItem**: 48h cache (hn_id, title, text, points, comment_count, expires_at)
+- **PainPoint**: Multi-source fields (`source_platform`, `source_post_ids`)
+- **SearchRun**: Source tracking (`sources_queried`, `hn_items_fetched`)
+
+**Composite Scoring** (unchanged):
+- Formula: `0.3×upvotes + 0.25×comments + 0.25×recency + 0.2×sentiment`
+- Log-scale normalization for engagement (max ~1000)
+- Exponential recency decay (30-day half-life)
+
+**Worker Tasks**:
+- `tasks/reddit_search.py`: Reddit PRAW pipeline
+- `tasks/hackernews_search.py`: HN Algolia fetch + cache
+- `tasks/unified_search.py`: Dedupe + aggregate + rank (depends_on=[reddit, hn])
+- `jobs/hackernews_cleanup.py`: Daily 3AM cleanup (48h TTL)
+
+**Services**:
+- `HackerNewsService`: Algolia API, caching, cleanup
+- `DeduplicationService`: URL/title similarity, cross-source merging
+- `UnifiedSearchService`: Multi-source ranking, pagination
+
+**Key Changes**:
+- Search now queries `["reddit", "hackernews"]` by default
+- Pain points preserve source platform and IDs
+- Circuit breaker prevents HN API cascade failures
+- RQ job chaining ensures unified results after both sources complete

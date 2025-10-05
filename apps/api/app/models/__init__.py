@@ -18,6 +18,9 @@ from .search_run import SearchRun, search_run_topics
 from .reddit_post import RedditPost
 from .pain_point import PainPoint
 
+# HackerNews Integration models (Feature 002)
+from .hackernews_item import HackerNewsItem
+
 __all__ = [
     "Base",
     # Legacy
@@ -32,4 +35,6 @@ __all__ = [
     "search_run_topics",
     "RedditPost",
     "PainPoint",
+    # Feature 002
+    "HackerNewsItem",
 ]

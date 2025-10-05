@@ -160,14 +160,15 @@ def process_search(search_run_id: str):
             combined_text = f"{original_post.get('title', '')} {original_post.get('text', '')}"
             sentiment_score = -TextBlob(combined_text).sentiment.polarity if combined_text else 0.0
 
-            # Create pain point record
+            # Create pain point record (Feature 002: Multi-source fields)
             pain_point = PainPoint(
                 id=str(uuid_lib.uuid4()),
                 search_run_id=search_run.id,
                 extracted_text=pain_point_data["extracted_text"],
                 relevance_score=round(relevance_score, 4),
                 sentiment_score=round(sentiment_score, 2),
-                source_reddit_post_ids=pain_point_data["source_posts"],
+                source_platform="reddit",  # Feature 002
+                source_post_ids=pain_point_data["source_posts"],  # Feature 002
                 source_deleted=False
             )
 

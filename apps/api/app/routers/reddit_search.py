@@ -49,12 +49,13 @@ async def create_search(
         - 401: Not authenticated
         - 422: Validation error (invalid topics or time_range)
     """
-    # Create search run
+    # Create search run (Feature 002: Multi-source support)
     search_run = SearchRun(
         id=str(uuid_lib.uuid4()),
         user_id=current_user.id,
         status="pending",
-        time_range=request.time_range.value
+        time_range=request.time_range.value,
+        sources_queried=["reddit", "hackernews"]  # Query both sources
     )
 
     db.add(search_run)
@@ -90,7 +91,7 @@ async def create_search(
     db.commit()
     db.refresh(search_run)
 
-    # Enqueue RQ job for background processing
+    # Enqueue RQ jobs for background processing (Feature 002: Multi-source)
     redis_conn = redis.Redis.from_url(settings.REDIS_URL)
     queue = Queue("default", connection=redis_conn)
 
@@ -100,8 +101,21 @@ async def create_search(
     if worker_path not in sys.path:
         sys.path.insert(0, worker_path)
 
+    # Enqueue Reddit search
     from worker.tasks.reddit_search import process_search
-    job = queue.enqueue(process_search, search_run.id)
+    reddit_job = queue.enqueue(process_search, search_run.id)
+
+    # Enqueue HackerNews search (parallel)
+    from worker.tasks.hackernews_search import fetch_hn_for_search
+    hn_job = queue.enqueue(fetch_hn_for_search, search_run.id)
+
+    # Enqueue unified aggregation (runs after BOTH complete)
+    from worker.tasks.unified_search import aggregate_and_extract_unified
+    unified_job = queue.enqueue(
+        aggregate_and_extract_unified,
+        search_run.id,
+        depends_on=[reddit_job, hn_job]  # Wait for both to finish
+    )
 
     return SearchRunCreated(
         search_run_id=str(search_run.id),
@@ -138,7 +152,9 @@ async def get_search_status(
         started_at=search_run.started_at,
         completed_at=search_run.completed_at,
         pain_points_count=search_run.pain_points_count,
-        error_message=search_run.error_message
+        error_message=search_run.error_message,
+        sources_queried=search_run.sources_queried,  # Feature 002
+        hn_items_fetched=search_run.hn_items_fetched  # Feature 002
     )
 
 

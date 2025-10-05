@@ -4,7 +4,7 @@ SQLAlchemy model for user-initiated discovery sessions
 """
 from sqlalchemy import Column, String, Integer, TIMESTAMP, Text, Table, ForeignKey, CheckConstraint
 from sqlalchemy.sql import text as sql_text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from . import Base
 
@@ -78,6 +78,20 @@ class SearchRun(Base):
         comment="Time window: 24h, 7days, 30days, 90days, 1year, all"
     )
 
+    # Source Tracking (Feature 002: Multi-source support)
+    sources_queried = Column(
+        JSONB,
+        nullable=False,
+        server_default='["reddit"]',
+        comment="Array of source platforms queried: reddit, hackernews, etc."
+    )
+
+    hn_items_fetched = Column(
+        Integer,
+        nullable=True,
+        comment="Count of HackerNews items fetched (null if HN not queried)"
+    )
+
     # Timestamps
     created_at = Column(
         TIMESTAMP,
@@ -121,6 +135,10 @@ class SearchRun(Base):
         CheckConstraint(
             "time_range IN ('24h', '7days', '30days', '90days', '1year', 'all')",
             name="check_time_range"
+        ),
+        CheckConstraint(
+            "hn_items_fetched >= 0 OR hn_items_fetched IS NULL",
+            name="check_hn_items_positive"
         ),
     )
 
