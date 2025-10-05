@@ -8,7 +8,7 @@ import os
 # Database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/microappfinder"
+    "postgresql+psycopg://postgres:postgres@localhost:5432/microappfinder"
 )
 
 # Create engine

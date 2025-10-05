@@ -1,18 +1,34 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy import pool
 from alembic import context
 import sys
 import os
 
 # Add the project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, project_root)
 
-from apps.api.app.core.database import Base
-from apps.api.app.models import Run, Signal, Cluster, Brief
+# Also add apps/api to path so "app" module can be found
+sys.path.insert(0, os.path.join(project_root, 'apps', 'api'))
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv(os.path.join(project_root, 'apps', 'api', '.env'))
+
+# Import Base without triggering engine creation
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
+# Import models to register them with Base
+from apps.api.app.models import user, topic, search_run, reddit_post, pain_point
 
 # this is the Alembic Config object
 config = context.config
+
+# Set the database URL from environment
+database_url = os.getenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:5432/microappfinder')
+config.set_main_option('sqlalchemy.url', database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

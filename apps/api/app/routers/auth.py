@@ -20,7 +20,7 @@ from app.services.auth_service import AuthService
 from app.core.auth import get_current_user, get_refresh_token_user
 
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

@@ -1,11 +1,11 @@
 # Same as API + worker-specific
-fastapi==0.110.0
-pydantic==2.6.1
-pydantic-settings==2.1.0
+fastapi>=0.110.0
+pydantic>=2.10.0
+pydantic-settings>=2.1.0
 
 # Database
-sqlalchemy==2.0.27
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0.36
+psycopg[binary]>=3.2.2
 
 # Redis & Queue
 redis==5.0.1
@@ -14,7 +14,6 @@ rq-scheduler==0.13.1
 
 # HTTP & Scraping
 httpx==0.26.0
-crawl4ai==0.2.0
 beautifulsoup4==4.12.3
 
 # API Integrations
@@ -23,8 +22,8 @@ requests==2.31.0
 
 # Vector & ML
 qdrant-client==1.7.3
-scikit-learn==1.4.1
-numpy==1.26.4
+scikit-learn>=1.4.1
+numpy>=1.26.4
 
 # LLM
 openai==1.12.0

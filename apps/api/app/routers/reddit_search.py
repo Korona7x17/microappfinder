@@ -26,7 +26,7 @@ from app.schemas.pain_point import PainPointResponse
 from app.core.auth import get_current_user, verify_run_ownership
 
 
-router = APIRouter(prefix="/api/reddit", tags=["reddit_search"])
+router = APIRouter(tags=["reddit_search"])
 
 
 @router.post("/search", response_model=SearchRunCreated, status_code=status.HTTP_201_CREATED)

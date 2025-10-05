@@ -12,10 +12,17 @@ class Settings(BaseSettings):
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
-    
+    ENVIRONMENT: str = "development"
+
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
-    
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+
+    # JWT Authentication
+    JWT_SECRET_KEY: str = "your-256-bit-secret-key-change-this-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/microappfinder"
     

@@ -1,14 +1,14 @@
 # FastAPI & Server
-fastapi==0.110.0
-uvicorn[standard]==0.27.1
-python-multipart==0.0.9
-pydantic==2.6.1
-pydantic-settings==2.1.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.1
+python-multipart>=0.0.9
+pydantic>=2.10.0
+pydantic-settings>=2.1.0
 
 # Database
-sqlalchemy==2.0.27
-psycopg2-binary==2.9.9
-alembic==1.13.1
+sqlalchemy>=2.0.36
+psycopg[binary]>=3.2.2
+alembic>=1.13.1
 
 # Redis & Queue
 redis==5.0.1
@@ -17,7 +17,6 @@ rq-scheduler==0.13.1
 
 # HTTP & Scraping
 httpx==0.26.0
-crawl4ai==0.2.0
 beautifulsoup4==4.12.3
 lxml==5.1.0
 

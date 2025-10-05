@@ -31,7 +31,7 @@ search_run_topics = Table(
         "created_at",
         TIMESTAMP,
         nullable=False,
-        server_default=sql_text("NOW()"),
+        server_default=text("NOW()"),
         comment="Assignment timestamp"
     )
 )
@@ -50,7 +50,7 @@ class SearchRun(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=sql_text("gen_random_uuid()"),
+        server_default=text("gen_random_uuid()"),
         comment="Unique run identifier"
     )
 
@@ -82,7 +82,7 @@ class SearchRun(Base):
     created_at = Column(
         TIMESTAMP,
         nullable=False,
-        server_default=sql_text("NOW()"),
+        server_default=text("NOW()"),
         comment="Run creation time"
     )
 

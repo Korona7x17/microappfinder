@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.config import settings
-from app.routers import runs, signals, clusters, briefs, exports
+from app.routers import runs, signals, clusters, briefs, exports, auth, reddit_search
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +38,8 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(reddit_search.router, prefix="/api/reddit", tags=["reddit"])
 app.include_router(runs.router, prefix="/api/runs", tags=["runs"])
 app.include_router(signals.router, prefix="/api/signals", tags=["signals"])
 app.include_router(clusters.router, prefix="/api/clusters", tags=["clusters"])

@@ -2,8 +2,7 @@
 T019: PainPoint model
 SQLAlchemy model for derived pain point aggregates
 """
-from sqlalchemy import Column, Boolean, TIMESTAMP, Text, DECIMAL, ForeignKey, CheckConstraint
-from sqlalchemy.sql import text as sql_text
+from sqlalchemy import Column, Boolean, TIMESTAMP, Text, DECIMAL, ForeignKey, CheckConstraint, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from . import Base
@@ -27,7 +26,7 @@ class PainPoint(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=sql_text("gen_random_uuid()"),
+        server_default=text("gen_random_uuid()"),
         comment="Unique pain point identifier"
     )
 
@@ -78,7 +77,7 @@ class PainPoint(Base):
     created_at = Column(
         TIMESTAMP,
         nullable=False,
-        server_default=sql_text("NOW()"),
+        server_default=text("NOW()"),
         comment="Extraction timestamp"
     )
 

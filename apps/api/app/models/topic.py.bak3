@@ -3,7 +3,7 @@ T016: Topic model
 SQLAlchemy model for search keywords/phrases
 """
 from sqlalchemy import Column, String, Integer, TIMESTAMP
-from sqlalchemy.sql import text as sql_text
+from sqlalchemy.sql import text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from . import Base
@@ -22,7 +22,7 @@ class Topic(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=sql_text("gen_random_uuid()"),
+        server_default=text("gen_random_uuid()"),
         comment="Unique topic identifier"
     )
 
@@ -38,7 +38,7 @@ class Topic(Base):
     created_at = Column(
         TIMESTAMP,
         nullable=False,
-        server_default=sql_text("NOW()"),
+        server_default=text("NOW()"),
         comment="First usage timestamp"
     )
 

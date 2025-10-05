@@ -98,7 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await loadUser();
   };
 
-  const value = {
+  const contextValue: AuthContextType = {
     user,
     loading,
     error,
@@ -108,7 +108,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 // Custom hook to use auth context

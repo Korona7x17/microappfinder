@@ -4,12 +4,15 @@
 
 set -e
 
+# Use PostgreSQL 17 path if available
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+
 echo "=== Reddit Pain Point Discovery - Database Setup ==="
 echo ""
 
 # Check if PostgreSQL is running
 echo "Checking PostgreSQL connection..."
-if ! psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+if ! psql postgres -c "SELECT 1" > /dev/null 2>&1; then
     echo "Error: PostgreSQL is not running or not accessible"
     echo "Please ensure PostgreSQL is running and accessible"
     exit 1
@@ -20,14 +23,24 @@ echo ""
 
 # Create database if it doesn't exist
 echo "Creating database (if needed)..."
-psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'microappfinder'" | grep -q 1 || \
-    psql -U postgres -c "CREATE DATABASE microappfinder"
+psql postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'microappfinder'" | grep -q 1 || \
+    psql postgres -c "CREATE DATABASE microappfinder"
 
 echo "✓ Database exists"
 echo ""
 
 # Run Alembic migrations
 echo "Running Alembic migrations..."
+
+# Activate API venv if it exists
+API_VENV="$(dirname "$0")/../apps/api/venv"
+if [ -f "$API_VENV/bin/activate" ]; then
+    source "$API_VENV/bin/activate"
+fi
+
+# Set PYTHONPATH to include apps/api directory
+export PYTHONPATH="$(dirname "$0")/../apps/api:$PYTHONPATH"
+
 cd "$(dirname "$0")/../infra/migrations"
 
 # Check current revision
@@ -45,7 +58,7 @@ echo ""
 
 # Verify tables
 echo "Verifying tables created..."
-TABLES=$(psql -U postgres -d microappfinder -tc "
+TABLES=$(psql -d microappfinder -tc "
     SELECT COUNT(*)
     FROM information_schema.tables
     WHERE table_schema = 'public'
