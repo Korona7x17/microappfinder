@@ -53,6 +53,24 @@ function DashboardContent() {
     loadDashboard(); // Refresh dashboard when search completes
   };
 
+  const handleDeleteSearch = async (searchRunId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation
+
+    if (!confirm('Delete this search? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.reddit.deleteSearch(searchRunId);
+      if (activeSearchId === searchRunId) {
+        setActiveSearchId(null);
+      }
+      loadDashboard(); // Refresh dashboard
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete search');
+    }
+  };
+
   if (loading && !dashboard) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -136,7 +154,7 @@ function DashboardContent() {
                             {new Date(run.created_at).toLocaleString()}
                           </p>
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-4 flex items-center gap-2">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${
                               run.status === 'completed'
@@ -150,6 +168,25 @@ function DashboardContent() {
                               ? `${run.pain_points_count} found`
                               : run.status}
                           </span>
+                          <button
+                            onClick={(e) => handleDeleteSearch(run.search_run_id, e)}
+                            className="text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete search"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     </div>

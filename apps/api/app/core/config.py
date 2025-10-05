@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/microappfinder"
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/microappfinder"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

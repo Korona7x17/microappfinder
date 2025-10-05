@@ -192,6 +192,14 @@ export const api = {
         }
       ),
 
+    deleteSearch: (searchRunId: string) =>
+      fetchAPI<{ message: string; search_run_id: string }>(
+        `/api/reddit/search/${searchRunId}`,
+        {
+          method: 'DELETE',
+        }
+      ),
+
     getRecent: (limit = 20) =>
       fetchAPI<PaginatedPainPoints>('/api/reddit/recent', {
         params: { limit },

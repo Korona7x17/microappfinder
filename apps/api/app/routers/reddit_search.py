@@ -25,6 +25,10 @@ from app.schemas.search import (
 from app.schemas.pain_point import PainPointResponse
 from app.core.auth import get_current_user, verify_run_ownership
 
+# RQ for background jobs
+import redis
+from rq import Queue
+from app.core.config import settings
 
 router = APIRouter(tags=["reddit_search"])
 
@@ -86,9 +90,18 @@ async def create_search(
     db.commit()
     db.refresh(search_run)
 
-    # TODO: Enqueue RQ job for background processing (T031)
-    # from app.worker.tasks.reddit_search import process_search
-    # job = process_search.delay(search_run.id)
+    # Enqueue RQ job for background processing
+    redis_conn = redis.Redis.from_url(settings.REDIS_URL)
+    queue = Queue("default", connection=redis_conn)
+
+    import sys
+    import os
+    worker_path = os.path.join(os.path.dirname(__file__), '../../../worker')
+    if worker_path not in sys.path:
+        sys.path.insert(0, worker_path)
+
+    from worker.tasks.reddit_search import process_search
+    job = queue.enqueue(process_search, search_run.id)
 
     return SearchRunCreated(
         search_run_id=str(search_run.id),
@@ -127,6 +140,32 @@ async def get_search_status(
         pain_points_count=search_run.pain_points_count,
         error_message=search_run.error_message
     )
+
+
+@router.delete("/search/{search_run_id}", status_code=status.HTTP_200_OK)
+async def cancel_search(
+    search_run: SearchRun = Depends(verify_run_ownership),
+    db: Session = Depends(get_db)
+):
+    """
+    DELETE /api/reddit/search/{search_run_id}
+
+    Cancel/delete a search run
+
+    Returns:
+        - 200: Search run cancelled/deleted
+        - 401: Not authenticated
+        - 403: Not authorized
+        - 404: Search run not found
+    """
+    # Delete associated pain points
+    db.query(PainPoint).filter(PainPoint.search_run_id == search_run.id).delete()
+
+    # Delete the search run
+    db.delete(search_run)
+    db.commit()
+
+    return {"message": "Search run deleted successfully", "search_run_id": str(search_run.id)}
 
 
 @router.get("/search/{search_run_id}/results", response_model=PaginatedPainPoints)
