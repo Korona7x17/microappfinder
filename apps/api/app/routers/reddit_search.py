@@ -124,6 +124,71 @@ async def create_search(
     )
 
 
+@router.post("/search/{search_run_id}/retry", response_model=SearchRunCreated, status_code=status.HTTP_200_OK)
+async def retry_search(
+    search_run: SearchRun = Depends(verify_run_ownership),
+    db: Session = Depends(get_db)
+):
+    """
+    POST /api/reddit/search/{search_run_id}/retry
+
+    Retry a failed search run
+
+    Returns:
+        - 200: Search restarted successfully
+        - 400: Search is not in failed status
+        - 401: Not authenticated
+        - 403: Not authorized to access this search run
+        - 404: Search run not found
+    """
+    # Only allow retry for failed searches
+    if search_run.status != "failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot retry search in '{search_run.status}' status. Only 'failed' searches can be retried."
+        )
+
+    # Reset search run status
+    search_run.status = "pending"
+    search_run.error_message = None
+    search_run.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(search_run)
+
+    # Re-enqueue jobs (same as create_search)
+    redis_conn = redis.Redis.from_url(settings.REDIS_URL)
+    queue = Queue("default", connection=redis_conn)
+
+    import sys
+    import os
+    worker_path = os.path.join(os.path.dirname(__file__), '../../../worker')
+    if worker_path not in sys.path:
+        sys.path.insert(0, worker_path)
+
+    # Enqueue Reddit search
+    from worker.tasks.reddit_search import process_search
+    reddit_job = queue.enqueue(process_search, search_run.id)
+
+    # Enqueue HackerNews search (parallel)
+    from worker.tasks.hackernews_search import fetch_hn_for_search
+    hn_job = queue.enqueue(fetch_hn_for_search, search_run.id)
+
+    # Enqueue unified aggregation (runs after BOTH complete)
+    from worker.tasks.unified_search import aggregate_and_extract_unified
+    unified_job = queue.enqueue(
+        aggregate_and_extract_unified,
+        search_run.id,
+        depends_on=[reddit_job, hn_job]
+    )
+
+    return SearchRunCreated(
+        search_run_id=str(search_run.id),
+        status=search_run.status,
+        message="Search restarted successfully"
+    )
+
+
 @router.get("/search/{search_run_id}", response_model=SearchRunStatus, status_code=status.HTTP_200_OK)
 async def get_search_status(
     search_run: SearchRun = Depends(verify_run_ownership),
@@ -253,7 +318,8 @@ async def get_search_results(
             extracted_text=pp.extracted_text,
             relevance_score=float(pp.relevance_score),
             sentiment_score=float(pp.sentiment_score),
-            source_reddit_post_ids=pp.source_reddit_post_ids,
+            source_platform=pp.source_platform,
+            source_post_ids=pp.source_post_ids,
             source_deleted=pp.source_deleted,
             created_at=pp.created_at,
             topics=topics
@@ -312,7 +378,8 @@ async def get_recent_pain_points(
                 extracted_text=pp.extracted_text,
                 relevance_score=float(pp.relevance_score),
                 sentiment_score=float(pp.sentiment_score),
-                source_reddit_post_ids=pp.source_reddit_post_ids,
+                source_platform=pp.source_platform,
+                source_post_ids=pp.source_post_ids,
                 source_deleted=pp.source_deleted,
                 created_at=pp.created_at,
                 topics=topics
@@ -394,7 +461,8 @@ async def get_dashboard(
                 extracted_text=pp.extracted_text,
                 relevance_score=float(pp.relevance_score),
                 sentiment_score=float(pp.sentiment_score),
-                source_reddit_post_ids=pp.source_reddit_post_ids,
+                source_platform=pp.source_platform,
+                source_post_ids=pp.source_post_ids,
                 source_deleted=pp.source_deleted,
                 created_at=pp.created_at,
                 topics=topics

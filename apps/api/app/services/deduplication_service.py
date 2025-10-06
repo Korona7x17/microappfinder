@@ -244,10 +244,10 @@ class DeduplicationService:
             "id": post.reddit_id,
             "source": "reddit",
             "title": post.title,
-            "text": post.selftext,
+            "text": post.text,
             "url": post.url,
             "score": post.score,
-            "comment_count": post.num_comments,
+            "comment_count": post.comment_count,
             "created_at": post.created_utc,
             "source_ids": [post.reddit_id]
         }

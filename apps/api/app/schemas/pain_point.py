@@ -28,13 +28,17 @@ class PainPointResponse(BaseModel):
         le=1.0,
         description="Sentiment polarity (-1 to 1) from TextBlob"
     )
-    source_reddit_post_ids: List[str] = Field(
+    source_platform: str = Field(
+        default="reddit",
+        description="Source platform (reddit, hackernews, etc.)"
+    )
+    source_post_ids: List[str] = Field(
         default_factory=list,
-        description="Array of Reddit post IDs (e.g., ['t3_abc123'])"
+        description="Array of source post IDs (e.g., ['t3_abc123'] for Reddit, ['12345678'] for HN)"
     )
     source_deleted: bool = Field(
         default=False,
-        description="Flag if source posts were deleted from Reddit"
+        description="Flag if source posts were deleted from source platform"
     )
     created_at: datetime = Field(..., description="Extraction timestamp")
     topics: List[str] = Field(
@@ -63,7 +67,8 @@ class PainPointResponse(BaseModel):
                 "extracted_text": "Users struggle with time management and need better productivity tracking tools",
                 "relevance_score": 0.8542,
                 "sentiment_score": -0.35,
-                "source_reddit_post_ids": ["t3_abc123", "t3_def456"],
+                "source_platform": "reddit",
+                "source_post_ids": ["t3_abc123", "t3_def456"],
                 "source_deleted": False,
                 "created_at": "2025-10-04T12:00:30Z",
                 "topics": ["productivity tools", "time management"]

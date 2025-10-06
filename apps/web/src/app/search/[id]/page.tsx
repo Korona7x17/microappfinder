@@ -103,6 +103,27 @@ function SearchResultsContent() {
                 >
                   {status.status}
                 </span>
+
+                {status.status === 'failed' && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.reddit.retrySearch(searchRunId);
+                        // Reload status and results
+                        await loadSearchStatus();
+                        setResults(null); // Clear old results
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Failed to retry search');
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Retry Search
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2 mb-2">
@@ -169,9 +190,16 @@ function SearchResultsContent() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Sources:</span>
-                      <span className="text-gray-700">
-                        {painPoint.source_reddit_post_ids.length} Reddit posts
+                      <span className="font-medium">Source:</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        painPoint.source_platform === 'hackernews'
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {painPoint.source_platform === 'hackernews' ? 'HackerNews' : 'Reddit'}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        ({painPoint.source_post_ids?.length || 0} posts)
                       </span>
                     </div>
                   </div>

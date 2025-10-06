@@ -151,7 +151,7 @@ export default function RunStatus({ searchRunId, onCompleted }: RunStatusProps) 
             <p className="text-sm text-gray-600 mt-2">
               {status.status === 'pending'
                 ? 'Waiting to start...'
-                : 'Searching Reddit and extracting pain points...'}
+                : 'Searching and extracting pain points...'}
             </p>
           </div>
         )}

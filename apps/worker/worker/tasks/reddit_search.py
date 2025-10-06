@@ -105,26 +105,32 @@ def process_search(search_run_id: str):
 
         saved_posts = []
         for post_data in filtered_posts:
-            # Save to PostgreSQL
-            reddit_post = RedditPost(
-                id=str(uuid_lib.uuid4()),
-                reddit_id=post_data["reddit_id"],
-                subreddit=post_data["subreddit"],
-                author=post_data.get("author"),
-                title=post_data["title"],
-                text=post_data.get("text"),
-                url=post_data["url"],
-                score=post_data["score"],
-                comment_count=post_data["comment_count"],
-                created_utc=post_data["created_utc"],
-                is_nsfw=post_data.get("is_nsfw", False),
-                expires_at=expires_at
-            )
+            # Check if post already exists
+            existing_post = db.query(RedditPost).filter(
+                RedditPost.reddit_id == post_data["reddit_id"]
+            ).first()
 
-            db.add(reddit_post)
+            if not existing_post:
+                # Save new post to PostgreSQL
+                reddit_post = RedditPost(
+                    id=str(uuid_lib.uuid4()),
+                    reddit_id=post_data["reddit_id"],
+                    subreddit=post_data["subreddit"],
+                    author=post_data.get("author"),
+                    title=post_data["title"],
+                    text=post_data.get("text"),
+                    url=post_data["url"],
+                    score=post_data["score"],
+                    comment_count=post_data["comment_count"],
+                    created_utc=post_data["created_utc"],
+                    is_nsfw=post_data.get("is_nsfw", False),
+                    expires_at=expires_at
+                )
+                db.add(reddit_post)
+
             saved_posts.append(post_data)
 
-            # Save to Redis cache with 48h TTL
+            # Save to Redis cache with 48h TTL (update even if exists)
             redis_key = f"reddit:post:{post_data['reddit_id']}"
             import json
             redis_client.setex(

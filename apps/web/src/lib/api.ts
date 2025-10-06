@@ -114,7 +114,8 @@ export interface PainPoint {
   extracted_text: string;
   relevance_score: number;
   sentiment_score: number;
-  source_reddit_post_ids: string[];
+  source_platform: string;
+  source_post_ids: string[];
   source_deleted: boolean;
   created_at: string;
   topics: string[];
@@ -197,6 +198,14 @@ export const api = {
         `/api/reddit/search/${searchRunId}`,
         {
           method: 'DELETE',
+        }
+      ),
+
+    retrySearch: (searchRunId: string) =>
+      fetchAPI<SearchRunCreated>(
+        `/api/reddit/search/${searchRunId}/retry`,
+        {
+          method: 'POST',
         }
       ),
 

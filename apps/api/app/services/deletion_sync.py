@@ -127,10 +127,11 @@ class DeletionSyncService:
                     ).scalar_one_or_none()
 
                     if post:
-                        # Update pain points that reference this post
+                        # Update pain points that reference this post (Reddit only)
                         pain_points = self.db.execute(
                             select(PainPoint).where(
-                                PainPoint.source_reddit_post_ids.contains([reddit_id])
+                                PainPoint.source_platform == "reddit",
+                                PainPoint.source_post_ids.contains([reddit_id])
                             )
                         ).scalars().all()
 

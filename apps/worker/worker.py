@@ -8,6 +8,12 @@ from rq_scheduler import Scheduler
 
 # Import jobs to register them
 from worker.jobs.deletion_sync import schedule_deletion_sync
+from worker.jobs.hackernews_cleanup import schedule_hn_cache_cleanup
+
+# Import tasks to register them with RQ
+from worker.tasks.reddit_search import process_search
+from worker.tasks.hackernews_search import fetch_hn_for_search
+from worker.tasks.unified_search import aggregate_and_extract_unified
 
 
 def start_worker():
@@ -46,9 +52,11 @@ def start_scheduler():
 
     # Schedule jobs
     schedule_deletion_sync(scheduler)
+    schedule_hn_cache_cleanup(scheduler)
 
     print("RQ Scheduler started. Scheduled jobs:")
     print("- Daily deletion sync: 2:00 AM UTC")
+    print("- Daily HackerNews cleanup: 3:00 AM UTC")
 
     # Run scheduler
     scheduler.run()

@@ -64,11 +64,11 @@ class UnifiedSearchService:
                 "id": post.reddit_id,
                 "source": "reddit",
                 "title": post.title,
-                "text": post.selftext,
+                "text": post.text,
                 "url": post.url,
                 "created_at": post.created_utc,
                 "upvotes": post.score,
-                "comments": post.num_comments,
+                "comments": post.comment_count,
                 "metadata": {
                     "subreddit": post.subreddit,
                     "author": post.author
