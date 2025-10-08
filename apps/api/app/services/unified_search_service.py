@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 from app.models.reddit_post import RedditPost
 from app.models.hackernews_item import HackerNewsItem
 from app.services.deduplication_service import DeduplicationService
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../worker'))
+from worker.pipeline.scorer import CompositeScorer
 import logging
 
 logger = logging.getLogger(__name__)
@@ -99,18 +103,22 @@ class UnifiedSearchService:
         upvotes: int,
         comments: int,
         created_at: datetime,
-        sentiment: float = 0.0
+        sentiment: float = 0.0,
+        platform: str = "reddit"
     ) -> float:
         """
         Calculate composite score for ranking
 
         Formula: 0.3×upvotes_norm + 0.25×comments_norm + 0.25×recency + 0.2×sentiment
 
+        Platform boost: HN items get 1.5x multiplier to compensate for lower raw engagement
+
         Args:
             upvotes: Upvote/points count
             comments: Comment count
             created_at: Creation timestamp
             sentiment: Sentiment score (-1 to 1)
+            platform: Source platform (reddit or hackernews)
 
         Returns:
             Composite score (0.0 to 1.0)
@@ -139,12 +147,19 @@ class UnifiedSearchService:
             self.WEIGHT_SENTIMENT * sentiment_norm
         )
 
+        # Apply platform-specific boost
+        # HN typically has 5-10x lower engagement than Reddit
+        # Apply 2.5x boost to help HN items compete for top 20
+        if platform == "hackernews":
+            score = min(score * 2.5, 1.0)
+
         return min(score, 1.0)
 
     def aggregate_and_rank(
         self,
         reddit_posts: List[RedditPost],
         hn_items: List[HackerNewsItem],
+        topics: Optional[List[str]] = None,
         time_range: Optional[str] = None,
         source_filter: Optional[str] = None,
         page: int = 1,
@@ -156,6 +171,7 @@ class UnifiedSearchService:
         Args:
             reddit_posts: List of Reddit posts
             hn_items: List of HN items
+            topics: List of search topic keywords for relevance scoring
             time_range: Optional time filter (7days, 30days, etc.)
             source_filter: Optional source filter (reddit, hackernews)
             page: Page number (1-indexed)
@@ -176,14 +192,28 @@ class UnifiedSearchService:
         if source_filter:
             results = [r for r in results if r["source"] == source_filter]
 
-        # Calculate composite scores
+        # Calculate composite scores using NEW CompositeScorer with topic relevance
         for result in results:
-            result["composite_score"] = self.calculate_composite_score(
-                upvotes=result["upvotes"],
-                comments=result["comments"],
-                created_at=result["created_at"],
-                sentiment=0.0  # TODO: Implement sentiment analysis
+            # Transform result to CompositeScorer format
+            post_data = {
+                "title": result["title"],
+                "text": result["text"] or "",
+                "score": result["upvotes"],
+                "comment_count": result["comments"],
+                "created_utc": result["created_at"]
+            }
+
+            # Use NEW scorer with topic relevance (30% weight)
+            composite_score = CompositeScorer.calculate_composite_score(
+                post_data=post_data,
+                topics=topics or []
             )
+
+            # Filter out posts that should be excluded (score = -1.0)
+            if composite_score < 0:
+                result["composite_score"] = 0.0  # Exclude by giving 0 score
+            else:
+                result["composite_score"] = composite_score
 
         # Sort by composite score (descending)
         results.sort(key=lambda x: x["composite_score"], reverse=True)

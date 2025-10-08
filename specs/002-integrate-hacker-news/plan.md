@@ -1,7 +1,8 @@
-# Implementation Plan: Hacker News Integration for Unified Search
 
-**Branch**: `002-integrate-hacker-news` | **Date**: 2025-10-05 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/002-integrate-hacker-news/spec.md`
+# Implementation Plan: [FEATURE]
+
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
@@ -17,7 +18,7 @@
    → Update Progress Tracking: Initial Constitution Check
 5. Execute Phase 0 → research.md
    → If NEEDS CLARIFICATION remain: ERROR "Resolve unknowns"
-6. Execute Phase 1 → contracts, data-model.md, quickstart.md, CLAUDE.md
+6. Execute Phase 1 → contracts, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, `GEMINI.md` for Gemini CLI, `QWEN.md` for Qwen Code, or `AGENTS.md` for all other agents).
 7. Re-evaluate Constitution Check section
    → If new violations: Refactor design, return to Phase 1
    → Update Progress Tracking: Post-Design Constitution Check
@@ -25,371 +26,194 @@
 9. STOP - Ready for /tasks command
 ```
 
-**IMPORTANT**: The /plan command STOPS at step 8. Phases 2-4 are executed by other commands:
+**IMPORTANT**: The /plan command STOPS at step 7. Phases 2-4 are executed by other commands:
 - Phase 2: /tasks command creates tasks.md
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-
-Integrate Hacker News (via Algolia HN API) as an additional background data source into the existing unified search pipeline. HN items will be fetched hourly, normalized into the same schema as Reddit pain points, scored using the mirrored Reddit scoring algorithm (points→upvotes mapping), and deduplicated using semantic similarity (85% cosine threshold) before being blended into the top-3 unified search results. This enhances coverage and freshness without changing the user experience.
-
-**Technical Approach**:
-- Create `HackerNewsItem` model mirroring `RedditPost` structure (48h cache for consistency)
-- Implement hourly background job to fetch from Algolia HN API
-- Extend existing scoring pipeline to handle HN items using same weights as Reddit
-- Leverage existing semantic deduplication infrastructure with 85% threshold
-- Add HN provider to search aggregator with parallel query execution
-- Implement circuit breaker and 500ms timeout for HN API calls
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
-
-**Language/Version**: Python 3.11 (backend), TypeScript/Next.js 14 (frontend - minimal changes)
-**Primary Dependencies**:
-- FastAPI + SQLAlchemy + Pydantic (backend)
-- RQ (Redis Queue) for background jobs
-- Algolia HN API client (requests or httpx)
-- Existing embedding service for semantic similarity
-**Storage**: PostgreSQL (metadata), Redis (48h cache + RQ jobs)
-**Testing**: pytest (backend unit/integration), contract tests via OpenAPI schema
-**Target Platform**: Linux server (Docker Compose dev, Hetzner VPS prod)
-**Project Type**: Web (monorepo: apps/api, apps/worker, apps/web)
-**Performance Goals**:
-- p95 latency ≤1 second for unified search
-- Hourly HN refresh cycle
-- 500ms timeout for HN API calls
-**Constraints**:
-- No UI changes (backend-only feature)
-- Must mirror Reddit scoring exactly (0.3×upvotes + 0.25×comments + 0.25×recency + 0.2×sentiment)
-- 48h data retention for raw HN content (consistency with Reddit compliance)
-- Algolia HN API rate limits (research needed)
-**Scale/Scope**:
-- Support 100 concurrent users (MVP target)
-- Process 1000 signals per run
-- Hourly background job for HN ingestion
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### ✅ I. Micro-App Fit First (NON-NEGOTIABLE)
-- [x] Solves 1 core job-to-be-done: Enhances search result quality by adding HN as a source
-- [x] ≤3 screens: No new UI (backend integration only)
-- [x] <1 week buildable: Yes (extends existing Reddit pattern)
-- [x] ≤15 seconds user input: No change (same search UX)
-- [x] $0 infrastructure initially: Uses existing PostgreSQL + Redis (Algolia HN API is free)
-
-**Status**: ✅ PASS
-
-### ✅ II. Lean & Fast-to-Ship
-- [x] MVP speed over perfection: Mirrors existing Reddit implementation for fast delivery
-- [x] No premature optimization: Hourly refresh (not real-time) keeps it simple
-- [x] Provider-agnostic: Algolia HN is official public API (no scraping)
-- [x] Docker-first: Existing Docker Compose setup supports this
-- [x] No bloat: Reuses existing models, scoring, deduplication infrastructure
-
-**Status**: ✅ PASS
-
-### ✅ III. Data Privacy & Compliance (NON-NEGOTIABLE)
-- [x] Store only public content: HN data is public, no PII
-- [x] Respect platform ToS: Algolia HN API is official, documented
-- [x] Per-domain throttling <1 rps: Hourly batch fetch reduces API calls significantly
-- [x] Cache 48h: Mirrors Reddit retention for consistency
-- [x] No PII collection: HN items are public stories/discussions
-
-**Status**: ✅ PASS
-
-### ✅ IV. Deterministic Scoring + Transparent Methodology
-- [x] Mirrors Reddit scoring: 0.3×points + 0.25×comments + 0.25×recency + 0.2×sentiment
-- [x] Reproducible: Same inputs → same scores
-- [x] Auditable: Score components visible
-- [x] Explainable: Users understand HN items compete with Reddit on same rubric
-
-**Status**: ✅ PASS
-
-### ✅ V. Quality Over Quantity
-- [x] Top-3 results focus maintained
-- [x] Deduplication: Semantic similarity (85% cosine) prevents cross-source duplicates
-- [x] Confidence scoring: Existing confidence logic applies to HN
-- [x] No quality degradation: A/B testing validates relevance
-
-**Status**: ✅ PASS
-
-### ✅ VI. Source Reliability & Safety
-- [x] Uses official Algolia HN API (approved primary source per constitution)
-- [x] No scraping required
-- [x] Stable, documented API
-
-**Status**: ✅ PASS
-
-### ✅ VII. Observability & Debugging
-- [x] Structured logging: Reuse existing run_id pattern
-- [x] Progress tracking: Extend existing pipeline visibility
-- [x] Error transparency: Graceful degradation if HN unavailable
-- [x] Monitoring: Existing Sentry + Uptime Kuma apply
-
-**Status**: ✅ PASS
-
-**Overall Constitution Check**: ✅ **PASS** — No violations, no complexity justifications needed.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 ```
-specs/002-integrate-hacker-news/
-├── spec.md              # Feature specification (input)
-├── plan.md              # This file (/plan output)
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-│   └── hackernews-api.yaml
+specs/[###-feature]/
+├── plan.md              # This file (/plan command output)
+├── research.md          # Phase 0 output (/plan command)
+├── data-model.md        # Phase 1 output (/plan command)
+├── quickstart.md        # Phase 1 output (/plan command)
+├── contracts/           # Phase 1 output (/plan command)
 └── tasks.md             # Phase 2 output (/tasks command - NOT created by /plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 ```
-apps/
-├── api/
-│   └── app/
-│       ├── models/
-│       │   ├── hackernews_item.py        # NEW: HN cache model
-│       │   ├── pain_point.py             # MODIFY: Support multi-source
-│       │   └── search_run.py             # MODIFY: Track HN in metadata
-│       ├── routers/
-│       │   └── search.py                 # MODIFY: Add HN to aggregator
-│       ├── services/
-│       │   ├── hackernews/              # NEW: HN provider
-│       │   │   ├── __init__.py
-│       │   │   ├── client.py            # Algolia HN API client
-│       │   │   ├── normalizer.py        # HN → unified schema
-│       │   │   └── scorer.py            # Mirror Reddit scoring
-│       │   ├── scoring/
-│       │   │   └── unified_scorer.py     # MODIFY: Multi-source scoring
-│       │   └── deduplication/
-│       │       └── semantic_dedup.py     # MODIFY: Cross-source dedup
-│       └── schemas/
-│           └── hackernews.py             # NEW: HN Pydantic schemas
-├── worker/
-│   ├── jobs/
-│   │   └── fetch_hackernews.py          # NEW: Hourly HN ingestion job
-│   └── worker.py                        # MODIFY: Register HN job
-└── web/
-    └── (no changes - backend only)
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
 tests/
-├── api/
-│   ├── contracts/
-│   │   └── test_hackernews_contract.py  # NEW: HN contract tests
-│   ├── integration/
-│   │   ├── test_hackernews_search.py    # NEW: HN search integration
-│   │   └── test_unified_dedup.py        # MODIFY: Cross-source dedup
-│   └── unit/
-│       ├── test_hn_client.py            # NEW: HN API client unit tests
-│       ├── test_hn_normalizer.py        # NEW: HN normalization tests
-│       └── test_hn_scorer.py            # NEW: HN scoring tests
-└── worker/
-    └── test_fetch_hackernews_job.py     # NEW: HN job tests
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Web application monorepo (apps/api, apps/worker, apps/web). Backend-heavy feature with no frontend changes. Mirrors existing Reddit provider pattern established in feature 001-reddit-pain-point.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Phase 0: Outline & Research
+1. **Extract unknowns from Technical Context** above:
+   - For each NEEDS CLARIFICATION → research task
+   - For each dependency → best practices task
+   - For each integration → patterns task
 
-**Goal**: Resolve remaining NEEDS CLARIFICATION items and establish technical decisions.
+2. **Generate and dispatch research agents**:
+   ```
+   For each unknown in Technical Context:
+     Task: "Research {unknown} for {feature context}"
+   For each technology choice:
+     Task: "Find best practices for {tech} in {domain}"
+   ```
 
-**Unknowns from Spec**:
-1. FR-019: Expected query volume and concurrent user load
-2. FR-022: Algolia HN API rate limits and handling
-3. Assumptions: Existing API infrastructure for external calls
-4. Assumptions: Existing deduplication/normalization libraries
-5. Dependencies: Specific services/modules for search aggregation
+3. **Consolidate findings** in `research.md` using format:
+   - Decision: [what was chosen]
+   - Rationale: [why chosen]
+   - Alternatives considered: [what else evaluated]
 
-**Research Tasks**:
-1. **Algolia HN API Investigation**:
-   - Endpoint: https://hn.algolia.com/api
-   - Rate limits: Document official limits
-   - Query parameters for search + filtering
-   - Response schema mapping to unified format
-   - Error handling and retry strategies
-
-2. **Existing Infrastructure Audit**:
-   - Review `apps/worker/jobs/` for background job patterns
-   - Review `apps/api/app/services/` for external API client patterns
-   - Review `apps/api/app/models/reddit_post.py` for 48h cache pattern
-   - Identify embedding service for semantic similarity (if exists, else plan fallback)
-
-3. **Scoring & Deduplication Discovery**:
-   - Locate existing scoring implementation (check worker.py or services/)
-   - Confirm Reddit scoring formula matches spec (0.3×upvotes + 0.25×comments + 0.25×recency + 0.2×sentiment)
-   - Identify semantic similarity library (sentence-transformers, OpenAI embeddings, etc.)
-   - Confirm 85% cosine threshold is feasible
-
-4. **Performance Baseline**:
-   - Document current search endpoint p95 latency (target: <1s)
-   - Confirm parallel query execution capability (asyncio or similar)
-   - Validate 500ms timeout feasibility for external API
-
-**Output**: `research.md` with decisions, rationale, and alternatives considered for each unknown.
+**Output**: research.md with all NEEDS CLARIFICATION resolved
 
 ## Phase 1: Design & Contracts
-
 *Prerequisites: research.md complete*
 
-### 1. Data Model Design (`data-model.md`)
+1. **Extract entities from feature spec** → `data-model.md`:
+   - Entity name, fields, relationships
+   - Validation rules from requirements
+   - State transitions if applicable
 
-**Entities**:
+2. **Generate API contracts** from functional requirements:
+   - For each user action → endpoint
+   - Use standard REST/GraphQL patterns
+   - Output OpenAPI/GraphQL schema to `/contracts/`
 
-#### HackerNewsItem (NEW)
-- **Purpose**: 48h cache of HN content (mirrors RedditPost pattern)
-- **Fields**:
-  - `id`: UUID (PK)
-  - `hn_id`: String (unique, HN item ID)
-  - `hn_type`: String (story/comment/poll)
-  - `author`: String (nullable)
-  - `title`: Text
-  - `text`: Text (nullable, for self posts)
-  - `url`: String (HN permalink)
-  - `points`: Integer (HN score)
-  - `comment_count`: Integer
-  - `created_utc`: TIMESTAMP
-  - `fetched_at`: TIMESTAMP
-  - `expires_at`: TIMESTAMP (fetched_at + 48h)
-- **Relationships**: None (cache only, soft-referenced by PainPoint)
-- **Validation**: `expires_at = fetched_at + 48h`, `points >= 0`, `comment_count >= 0`
+3. **Generate contract tests** from contracts:
+   - One test file per endpoint
+   - Assert request/response schemas
+   - Tests must fail (no implementation yet)
 
-#### PainPoint (MODIFY)
-- **Changes**:
-  - Add `source_type`: String (enum: 'reddit', 'hackernews') to track origin
-  - Modify `source_reddit_post_ids`: Rename to `source_post_ids` (JSONB, agnostic)
-  - Add `source_platform`: String to metadata
-- **Migration**: Alembic migration to add new fields with defaults for existing rows
+4. **Extract test scenarios** from user stories:
+   - Each story → integration test scenario
+   - Quickstart test = story validation steps
 
-#### SearchRun (MODIFY)
-- **Changes**:
-  - Add `sources_queried`: JSONB array (e.g., ["reddit", "hackernews"])
-  - Add `hn_items_fetched`: Integer (nullable, HN-specific count)
-- **Migration**: Add optional metadata fields
+5. **Update agent file incrementally** (O(1) operation):
+   - Run `.specify/scripts/bash/update-agent-context.sh claude`
+     **IMPORTANT**: Execute it exactly as specified above. Do not add or remove any arguments.
+   - If exists: Add only NEW tech from current plan
+   - Preserve manual additions between markers
+   - Update recent changes (keep last 3)
+   - Keep under 150 lines for token efficiency
+   - Output to repository root
 
-### 2. API Contracts (`contracts/hackernews-api.yaml`)
-
-**No new public endpoints** (backend integration only). Document internal service contract:
-
-```yaml
-# Internal Service Contract: HackerNews Provider
-HackerNewsClient.search(query: str, time_range: str) -> List[HNItemSchema]
-  - Queries Algolia HN API
-  - Returns normalized HN items
-  - Timeout: 500ms
-  - Circuit breaker on 3 consecutive failures
-
-HNNormalizer.to_unified_schema(hn_item: HNItemSchema) -> UnifiedSearchResult
-  - Maps HN fields to unified schema
-  - Applies source attribution
-
-HNScorer.calculate_score(hn_item: HNItemSchema) -> float
-  - Mirrors Reddit formula: 0.3×points + 0.25×comments + 0.25×recency + 0.2×sentiment
-  - Returns score 0-1
-```
-
-### 3. Contract Tests (TDD)
-
-Generate failing tests:
-- `tests/api/unit/test_hn_client.py`: Mock Algolia HN API responses
-- `tests/api/unit/test_hn_normalizer.py`: Validate field mapping
-- `tests/api/unit/test_hn_scorer.py`: Assert scoring formula correctness
-- `tests/api/integration/test_hackernews_search.py`: End-to-end HN search flow
-- `tests/api/integration/test_unified_dedup.py`: Cross-source deduplication with Reddit + HN
-
-### 4. Quickstart Test Scenarios (`quickstart.md`)
-
-Extract from user stories:
-1. **User Story 1**: Search "productivity tools" → Validate top 3 results include HN items with correct schema
-2. **User Story 2**: No source selection → Confirm automatic blending
-3. **User Story 3**: Fresh results → Confirm HN items ≤1 hour old appear
-4. **Edge Case**: HN API down → Confirm graceful degradation (Redis returns without error)
-
-### 5. Update CLAUDE.md
-
-Run: `.specify/scripts/bash/update-agent-context.sh claude`
-
-Add to context:
-- Recent change: HN integration (feature 002)
-- Tech: Algolia HN API, semantic deduplication (85% threshold)
-- Patterns: Hourly background job, mirrored scoring, 48h cache
-
-**Output**: `data-model.md`, `contracts/hackernews-api.yaml`, failing tests, `quickstart.md`, updated `CLAUDE.md`
+**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, agent-specific file
 
 ## Phase 2: Task Planning Approach
-
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
-1. Load `.specify/templates/tasks-template.md`
-2. Generate tasks from Phase 1 artifacts:
-   - data-model.md entities → model creation tasks
-   - contracts → contract test tasks
-   - quickstart scenarios → integration test tasks
-3. Follow TDD order: Tests first, implementation second
-4. Mark [P] for parallelizable tasks (independent files)
-
-**Task Categories**:
-- **Database**: Alembic migration for `HackerNewsItem`, `PainPoint`, `SearchRun` schema changes
-- **Models**: Create `HackerNewsItem` model
-- **Services**: HN client, normalizer, scorer
-- **Integration**: Extend search aggregator to query HN in parallel with Reddit
-- **Worker**: Hourly HN fetch job
-- **Tests**: Contract tests, unit tests, integration tests
-- **Validation**: Quickstart execution, A/B test setup
+- Load `.specify/templates/tasks-template.md` as base
+- Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
+- Each contract → contract test task [P]
+- Each entity → model creation task [P] 
+- Each user story → integration test task
+- Implementation tasks to make tests pass
 
 **Ordering Strategy**:
-1. Database migrations (blocking)
-2. Model creation [P]
-3. Service layer (client, normalizer, scorer) [P]
-4. Integration (aggregator, deduplication) [depends on services]
-5. Worker job [depends on services]
-6. Tests [throughout, TDD]
-7. Quickstart validation [final]
+- TDD order: Tests before implementation 
+- Dependency order: Models before services before UI
+- Mark [P] for parallel execution (independent files)
 
-**Estimated Output**: 20-25 tasks in dependency order
+**Estimated Output**: 25-30 numbered, ordered tasks in tasks.md
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 
 ## Phase 3+: Future Implementation
-
 *These phases are beyond the scope of the /plan command*
 
-**Phase 3**: Task execution (/tasks command creates tasks.md)
-**Phase 4**: Implementation (execute tasks.md)
-**Phase 5**: Validation (pytest, quickstart.md, A/B testing)
+**Phase 3**: Task execution (/tasks command creates tasks.md)  
+**Phase 4**: Implementation (execute tasks.md following constitutional principles)  
+**Phase 5**: Validation (run tests, execute quickstart.md, performance validation)
 
 ## Complexity Tracking
+*Fill ONLY if Constitution Check has violations that must be justified*
 
-*No constitutional violations — this section is empty.*
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
 
 ## Progress Tracking
-
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [x] Phase 0: Research complete (/plan command) ✅
-- [x] Phase 1: Design complete (/plan command) ✅
-- [x] Phase 2: Task planning complete (/plan command - describe approach only) ✅
-- [x] Phase 3: Tasks generated (/tasks command) ✅
+- [ ] Phase 0: Research complete (/plan command)
+- [ ] Phase 1: Design complete (/plan command)
+- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
+- [ ] Phase 3: Tasks generated (/tasks command)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [x] Initial Constitution Check: PASS ✅
-- [x] Post-Design Constitution Check: PASS ✅
-- [x] All NEEDS CLARIFICATION resolved ✅
-- [x] Complexity deviations documented (none) ✅
-
-**Artifacts Generated**:
-- [x] research.md (Phase 0)
-- [x] data-model.md (Phase 1)
-- [x] contracts/hackernews-api.yaml (Phase 1)
-- [x] quickstart.md (Phase 1)
-- [x] CLAUDE.md updated (Phase 1)
-- [x] tasks.md (Phase 3) - 28 tasks, 16 parallel
+- [ ] Initial Constitution Check: PASS
+- [ ] Post-Design Constitution Check: PASS
+- [ ] All NEEDS CLARIFICATION resolved
+- [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v1.0.0 - See `.specify/memory/constitution.md`*
+*Based on Constitution v2.1.1 - See `/memory/constitution.md`*

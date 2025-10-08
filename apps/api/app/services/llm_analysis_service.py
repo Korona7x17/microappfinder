@@ -104,18 +104,36 @@ class LLMAnalysisService:
                         "role": "system",
                         "content": """You are an expert at identifying micro SaaS opportunities from online discussions.
 
-Analyze the following threads and identify the TOP opportunities based on:
-1. Advice requests - people asking for help or guidance
-2. Solution requests - people looking for tools, apps, or ways to solve problems
-3. Pain and anger - frustrations and challenges people are facing
-4. Problems being discussed - issues that come up frequently
-5. Signs of willingness to pay or strong interest
-6. Market validation signals - multiple people with similar needs
+Analyze threads for signals that indicate a viable micro app opportunity:
+
+**Look for:**
+1. **Specific, concrete problems** - clear pain points, not just vague frustration
+2. **Pain indicators**:
+   - Spending significant time on manual tasks
+   - Repeatedly frustrated by missing features
+   - Trying multiple tools that don't quite work
+   - Asking "how do others solve this?"
+   - Describing workarounds or hacks they're using
+3. **Market validation** - multiple people with similar issues, OR high engagement (upvotes/comments)
+4. **Feasibility** - solvable with software in 1-3 months, not requiring massive infrastructure
+
+**Positive signals (don't require all):**
+- Mentions current tools being too expensive/complicated
+- "I wish there was..."
+- "Why doesn't anyone build..."
+- Describing time-consuming manual processes
+- Multiple people agreeing/sharing same problem
+
+**Avoid:**
+- Purely hypothetical "wouldn't it be cool if"
+- Feature requests for existing major products (not standalone-worthy)
+- Requires massive team or hardware
+- One-time tasks with no ongoing value
 
 Return ONLY a JSON array of the top thread IDs in priority order.
 Format: ["id1", "id2", "id3", ...]
 
-Be selective - only include truly promising opportunities."""
+Include any thread with a specific, recurring problem that could be solved with software. Be inclusive - err on the side of passing interesting opportunities to the next stage."""
                     },
                     {
                         "role": "user",
@@ -170,6 +188,13 @@ Be selective - only include truly promising opportunities."""
         """
         logger.info(f"Tier 2: Deep analyzing {len(candidates)} candidates with Claude Sonnet")
 
+        # DEBUG: Log first candidate to verify content
+        if candidates:
+            first = candidates[0]
+            print(f"DEBUG Tier 2 - First candidate ID: {first.get('id')}")
+            print(f"DEBUG Tier 2 - First candidate title: {first.get('title', '')[:100]}")
+            print(f"DEBUG Tier 2 - First candidate source: {first.get('source')}")
+
         # Prepare batch prompt with full content
         batch_content = self._prepare_tier2_batch(candidates)
 
@@ -181,22 +206,40 @@ Be selective - only include truly promising opportunities."""
                 messages=[
                     {
                         "role": "user",
-                        "content": f"""You are an expert at identifying and evaluating micro SaaS opportunities.
+                        "content": f"""You are an expert at evaluating micro SaaS business opportunities.
 
-Analyze these {len(candidates)} threads in detail and select ALL truly promising opportunities. Do not limit yourself - if there are 3 great opportunities, return 3. If there are 15, return 15. Quality matters more than quantity, but don't artificially limit the results.
+Analyze these {len(candidates)} threads in detail. For each thread with a viable product opportunity, extract insights. Don't filter too aggressively - let the user decide which to pursue.
 
 {batch_content}
 
-For each selected opportunity, provide:
-1. **problem_summary**: 2-3 sentence summary of the problem
-2. **why_good_opportunity**: Why this is a good business opportunity
-3. **key_quotes**: 2-3 direct quotes showing demand
-4. **urgency_score**: 1-10 (how urgently do people need this?)
-5. **willingness_to_pay_score**: 1-10 (how likely are they to pay?)
-6. **market_size_indicator**: "small" | "medium" | "large"
-7. **feasibility_score**: 1-10 (how buildable is this?)
+**Look for:**
+1. **Specific, actionable problem** - concrete pain point that software can solve
+2. **Pain indicators**:
+   - Time spent on repetitive tasks
+   - Frustration with current tools
+   - Manual workarounds being used
+   - Active search for solutions
+3. **Business viability**:
+   - Problem affects multiple people OR shows high engagement
+   - Recurring need (not just one-time)
+   - Solvable by solo dev/small team in 1-3 months
+4. **Market signals**:
+   - People trying multiple tools that don't work well
+   - Complaints about existing tools being too expensive/complex
+   - Questions like "how do you handle X?"
 
-Return ONLY a JSON array of ALL promising opportunities:
+For each opportunity, provide:
+1. **problem_summary**: 2-3 sentence clear description of the problem
+2. **why_good_opportunity**: Why this could be a viable product (focus on pain level, market demand, feasibility)
+3. **key_quotes**: 1-2 quotes showing the pain or demand
+4. **urgency_score**: 1-10 (is this an urgent problem needing immediate solution?)
+5. **willingness_to_pay_score**: 1-10 (how likely are people to pay? Consider: explicit price mentions, time saved, frustration level, existing tool costs)
+6. **market_size_indicator**: "small" | "medium" | "large" (based on engagement + niche breadth)
+7. **feasibility_score**: 1-10 (buildable by solo dev in 1-3 months?)
+
+Calculate **opportunity_score** as average of: (urgency_score + willingness_to_pay_score + feasibility_score) / 3
+
+Return ONLY a JSON array:
 ```json
 [
   {{
@@ -204,16 +247,16 @@ Return ONLY a JSON array of ALL promising opportunities:
     "problem_summary": "...",
     "why_good_opportunity": "...",
     "key_quotes": ["quote1", "quote2"],
-    "urgency_score": 8,
-    "willingness_to_pay_score": 7,
+    "urgency_score": 7,
+    "willingness_to_pay_score": 6,
     "market_size_indicator": "medium",
-    "feasibility_score": 9,
-    "opportunity_score": 8.2
+    "feasibility_score": 8,
+    "opportunity_score": 7.0
   }}
 ]
 ```
 
-Be selective about quality, not quantity. Include any opportunity that meets the criteria above."""
+Include any opportunity with a clear, recurring problem that could realistically be solved with software. Be generous - it's better to include marginal opportunities than miss good ones."""
                     }
                 ]
             )
@@ -229,6 +272,13 @@ Be selective about quality, not quantity. Include any opportunity that meets the
 
             opportunities = json.loads(result_text)
 
+            # DEBUG: Log what LLM returned
+            print(f"DEBUG Tier 2 - LLM returned {len(opportunities)} opportunities")
+            if opportunities:
+                first_opp = opportunities[0]
+                print(f"DEBUG Tier 2 - First opportunity ID: {first_opp.get('id')}")
+                print(f"DEBUG Tier 2 - First opportunity summary: {first_opp.get('problem_summary', '')[:100]}")
+
             # Merge LLM insights back into original candidates
             # No artificial limit - return ALL opportunities Claude selected
             enriched = []
@@ -236,6 +286,7 @@ Be selective about quality, not quantity. Include any opportunity that meets the
                 thread_id = opp.get("id")
 
                 # Find original candidate
+                matched = False
                 for candidate in candidates:
                     if candidate.get("id") == thread_id:
                         # Add LLM insights
@@ -250,7 +301,11 @@ Be selective about quality, not quantity. Include any opportunity that meets the
                             "opportunity_score": opp.get("opportunity_score")
                         }
                         enriched.append(candidate)
+                        matched = True
                         break
+
+                if not matched:
+                    print(f"DEBUG Tier 2 - WARNING: LLM returned ID '{thread_id}' but no matching candidate found!")
 
             logger.info(f"Tier 2 selected {len(enriched)} final opportunities")
             return enriched

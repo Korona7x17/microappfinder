@@ -76,9 +76,13 @@ def fetch_hn_for_search(search_run_id: str):
         }
         days_back = time_range_days.get(search_run.time_range, 30)
 
+        # Pain indicator keywords for filtering stories
+        # Ask HN already filtered to questions, so we only need this for regular stories
+        pain_keywords = ["problem", "issue", "struggling", "help", "difficult", "challenge"]
+
         # Search for each topic - keep it simple
         for topic in topics[:3]:  # Limit to first 3 topics
-            # Search Ask HN posts (these often contain problems/requests)
+            # Search Ask HN posts (already inherently questions/problems)
             logger.info(f"HN search query (Ask HN): {topic}")
             ask_items = hn_service.fetch_and_cache_stories(
                 query=topic,
@@ -88,10 +92,12 @@ def fetch_hn_for_search(search_run_id: str):
             )
             all_items.extend(ask_items)
 
-            # Also search regular stories with the topic
-            logger.info(f"HN search query (Stories): {topic}")
+            # For regular stories, add pain keywords to filter out announcements/success posts
+            # Use OR to be flexible - any pain keyword + topic
+            story_query = f"{topic} ({' OR '.join(pain_keywords[:3])})"
+            logger.info(f"HN search query (Stories): {story_query}")
             story_items = hn_service.fetch_and_cache_stories(
-                query=topic,
+                query=story_query,
                 tags="story",
                 min_points=5,  # Lower threshold for more results
                 days_back=days_back

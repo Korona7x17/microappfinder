@@ -1,19 +1,19 @@
 # Project Snapshot — MicroAppFinder
 
-**Last Updated:** 2025-10-05
+**Last Updated:** 2025-10-07
 **Project:** MicroAppFinder - Multi-source micro app opportunity discovery system
 
-## BRIEF_SUMMARY (2025-10-05 16:00)
+## BRIEF_SUMMARY (2025-10-07 18:56)
 
-C: Next.js 14 frontend; FastAPI backend; RQ worker pipeline; PostgreSQL + Redis; Multi-source aggregation (Reddit + HackerNews); 48h cache compliance; Circuit breaker resilience
+C: Next.js 14 frontend; FastAPI backend; RQ worker pipeline; PostgreSQL + Redis; Multi-source aggregation (Reddit + HackerNews); Two-tier LLM analysis (GPT-4o-mini → Claude Sonnet); Site-wide Reddit search; Rich opportunity insights
 
-D: Feature 001 (Reddit Pain Point Discovery) ✅ COMPLETE; Feature 002 (HackerNews Integration) ✅ COMPLETE; Composite scoring 0.3×upvotes + 0.25×comments + 0.25×recency + 0.2×sentiment; Cross-source deduplication (URL + 85% semantic similarity); JWT auth with httponly cookies
+D: Feature 001 (Reddit) ✅; Feature 002 (HackerNews) ✅; Feature 003 (LLM Insights) ✅; **CRITICAL FIX**: Reddit now searches site-wide (was hardcoded to 14 subreddits); Two-tier LLM: GPT-4o-mini filter (30→10) → Claude Sonnet deep analysis (→unlimited opportunities); Dashboard shows LLM-generated problem summaries, key quotes, and scores
 
-Δ: Reddit + HN unified search fully operational; 72 comprehensive tests (TDD); 3 migrations applied; Circuit breaker pattern implemented; Pain points now track source_platform + source_post_ids; RQ job chaining (reddit_job + hn_job → unified_job)
+Δ: **Major fix**: Replaced hardcoded subreddit search with site-wide Reddit search - now finds topic-specific results; LLM analysis fully operational with unlimited opportunity limit (was 5); Frontend displays rich LLM insights (problem_summary, why_good_opportunity, key_quotes, urgency/pay/feasibility scores); Anthropic API key updated with credits
 
-Q: SQLite tests incompatible with PostgreSQL JSONB (need PostgreSQL test instance or JSON fallback); Circuit breaker state in-memory (resets on worker restart)
+Q: None critical; All systems operational with topic-specific search results
 
-→: Integration testing with live data; Worker startup automation; Monitor HN API performance; Consider ProductHunt/IndieHackers integration (same pattern); Future: clustering + brief generation pipeline
+→: Test new search with "etsy listing optimization" to verify Etsy-specific results; Monitor LLM costs (~$0.06/search); Consider ProductHunt/IndieHackers integration
 
 ## Active Context
 
@@ -28,7 +28,7 @@ Q: SQLite tests incompatible with PostgreSQL JSONB (need PostgreSQL test instanc
 
 ### ✅ Feature 001: Reddit Pain Point Discovery (001-reddit-pain-point)
 - JWT authentication with httponly cookies
-- Reddit search via PRAW (14 curated subreddits)
+- **Reddit site-wide search** (fixed from 14 hardcoded subreddits - 2025-10-07)
 - Pain point extraction with composite scoring
 - 48h Redis + PostgreSQL cache with deletion compliance
 - User-scoped privacy (FK constraints + ownership middleware)
@@ -61,6 +61,24 @@ Q: SQLite tests incompatible with PostgreSQL JSONB (need PostgreSQL test instanc
 **Worker Tasks:** hackernews_search.py, unified_search.py, hackernews_cleanup.py (daily 3AM)
 
 **Test Coverage:** 72 tests (6 suites: model, multi-source, tracking, fetch, dedup, aggregation)
+
+### ✅ Feature 003: LLM-Powered Opportunity Analysis (002-integrate-hacker-news)
+- **Two-tier LLM analysis**: GPT-4o-mini (Tier 1 quick filter) → Claude Sonnet 4 (Tier 2 deep analysis)
+- **Tier 1**: Analyzes top 30 candidates, selects top 10 for deep analysis (~$0.003/search)
+- **Tier 2**: Deep analysis with problem summary, opportunity rationale, key quotes, scores (~$0.06/search)
+- **Unlimited opportunities**: No artificial 5-limit, Claude returns all promising results
+- **Rich frontend display**: Problem summaries, key quotes, urgency/pay/feasibility scores
+- **Fallback handling**: Graceful degradation to excerpts if LLM fails
+
+**Updated Models:** PainPoint (+llm_insights JSONB field)
+
+**New Services:** LLMAnalysisService, OpportunityFilterService
+
+**Frontend Updates:** Dashboard shows LLM insights when available, backward compatible with old searches
+
+**Decision Logs:**
+- `memory/decisions/003-llm-insights-display.md`
+- `memory/decisions/004-fix-hardcoded-subreddits.md`
 
 **Architecture Flow:**
 ```
@@ -145,6 +163,25 @@ POST /search → Create SearchRun (sources=["reddit","hackernews"])
 ### D-2025-10-05-07 — 48h Cache Pattern Consistency
 - HackerNewsItem mirrors RedditPost TTL for architectural consistency
 - Daily cleanup at 3AM (after Reddit sync at 2AM)
+
+### D-2025-10-07-01 — LLM Two-Tier Analysis Architecture
+- GPT-4o-mini (Tier 1): Fast, cheap filter on 30 candidates → selects top 10
+- Claude Sonnet 4 (Tier 2): Deep analysis on top 10 → returns unlimited opportunities
+- Total cost: ~$0.06 per search ($0.003 Tier 1 + ~$0.06 Tier 2)
+- No artificial limits on opportunity count (was 5, now unlimited based on quality)
+
+### D-2025-10-07-02 — **CRITICAL: Reddit Site-Wide Search**
+- **Problem**: Hardcoded 14-subreddit list (productivity, AppIdeas, etc.) caused irrelevant results
+  - "etsy listing optimization" searched r/productivity → returned productivity posts
+  - All searches limited to generic entrepreneurship subreddits
+- **Solution**: Replaced with Reddit site-wide search (`subreddit("all")`)
+  - Reddit automatically finds topic-relevant subreddits
+  - "etsy listing optimization" → r/Etsy, r/EtsySellers, r/ecommerce
+  - Works for ANY topic, not just entrepreneurship
+- **Changes**:
+  - `reddit_api.py:112-186` - Site-wide search with limit=300, score≥5
+  - Removed unused `pain_phrases` array (dead code)
+  - Increased quality threshold from 2 to 5
 
 ## System Status
 

@@ -113,16 +113,16 @@ class RedditAPIClient:
         self,
         topics: List[str],
         time_range: str = "week",
-        limit: int = 100,
+        limit: int = 300,
         filter_nsfw: bool = True,
     ) -> List[Dict[str, Any]]:
         """
-        Search curated subreddits for pain points
+        Search Reddit site-wide for pain points related to topics
 
         Args:
             topics: List of search keywords (1-5 items)
             time_range: Time filter ('day', 'week', 'month', 'year', 'all')
-            limit: Max results per subreddit
+            limit: Max total results across all of Reddit
             filter_nsfw: Exclude NSFW content (default: True)
 
         Returns:
@@ -139,69 +139,60 @@ class RedditAPIClient:
         }
         praw_time_filter = time_filter_map.get(time_range, "month")
 
-        # Build search query targeting PAIN SIGNALS per spec
-        # Instead of just searching for generic topics, search for pain expressions
-        pain_phrases = [
-            '"I wish there was an app"',
-            '"is there an app that"',
-            '"how do you track"',
-            '"looking for a tool"',
-            '"need a way to"',
-            '"frustrated with"',
-            '"annoying that"',
-            '"pain point"',
-            '"would pay for"',
-            '"somebody should build"',
-            '"why isn\'t there"'
+        # Build search query from user's topics
+        # Add pain-indicator keywords to bias toward problems/pain points
+        # This helps filter out success stories and tool promotions
+        pain_indicators = [
+            "problem", "issue", "struggling", "frustrated", "help",
+            "difficult", "challenge", "pain", "annoying", "hate",
+            "wish", "better way", "alternative", "missing feature"
         ]
 
-        # Simpler approach: just search for the topics directly
-        # Let the LLM analyze what's a pain point later
-        # This follows Greg Isenberg's approach - find what's trending first
+        # Combine topic with pain indicators using OR for flexibility
+        # Reddit will rank posts that match both topic AND pain indicators higher
+        base_query = " OR ".join(topics[:3])
+        pain_query = " OR ".join(pain_indicators[:5])  # Use top 5 pain indicators
+        query = f"({base_query}) AND ({pain_query})"
 
-        # Simply search for topics - Reddit will find relevant discussions
-        query = " OR ".join(topics[:3])  # Just use the topics directly
-
-        print(f"Reddit search query: {query}")  # Log full query
+        print(f"Reddit site-wide search query: {query}")
 
         results = []
 
-        for subreddit_name in self.CURATED_SUBREDDITS:
-            try:
-                self._rate_limit()
+        try:
+            self._rate_limit()
 
-                subreddit = self.reddit.subreddit(subreddit_name)
+            # Use Reddit site-wide search instead of hardcoded subreddits
+            # This allows Reddit to find relevant subreddits automatically
+            submissions = self.reddit.subreddit("all").search(
+                query=query,
+                time_filter=praw_time_filter,
+                limit=limit,
+                sort="relevance"
+            )
 
-                # Search subreddit
-                submissions = subreddit.search(
-                    query=query,
-                    time_filter=praw_time_filter,
-                    limit=limit,
-                    sort="relevance"
-                )
+            for submission in submissions:
+                # Filter NSFW
+                if filter_nsfw and submission.over_18:
+                    continue
 
-                for submission in submissions:
-                    # Filter NSFW
-                    if filter_nsfw and submission.over_18:
-                        continue
+                # Filter low-quality posts (score threshold)
+                if submission.score < 5:  # Increased threshold for site-wide search
+                    continue
 
-                    # Filter low-quality posts (score threshold)
-                    if submission.score < 2:
-                        continue
+                # Filter spam
+                combined_text = f"{submission.title} {submission.selftext}"
+                if self._is_spam(combined_text):
+                    continue
 
-                    # Filter spam
-                    combined_text = f"{submission.title} {submission.selftext}"
-                    if self._is_spam(combined_text):
-                        continue
+                # Add to results
+                post_data = self._submission_to_dict(submission)
+                results.append(post_data)
 
-                    # Add to results
-                    post_data = self._submission_to_dict(submission)
-                    results.append(post_data)
+            print(f"Reddit site-wide search found {len(results)} posts")
 
-            except Exception as e:
-                # Log error but continue with other subreddits
-                print(f"Error searching r/{subreddit_name}: {str(e)}")
-                continue
+        except Exception as e:
+            print(f"Error in Reddit site-wide search: {str(e)}")
+            # Don't raise - return empty results on error
 
         return results
 

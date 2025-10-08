@@ -104,11 +104,17 @@ def aggregate_and_extract_unified(search_run_id: str):
         # Step 5: Rank using unified search service
         unified_service = UnifiedSearchService(db)
 
+        # Extract topics for relevance scoring
+        topics = [topic.keyword for topic in search_run.topics]
+
         # Pass all items to ranking (deduplication is for tracking only)
+        # Request top 200 to ensure platform diversity before LLM selection
         # Don't pass time_range - items are already time-filtered when fetched
         ranked_results = unified_service.aggregate_and_rank(
             reddit_posts=reddit_posts,
-            hn_items=hn_items
+            hn_items=hn_items,
+            topics=topics,  # CRITICAL: Pass topics for relevance scoring
+            per_page=200  # Get more results for platform-diverse selection
         )
 
         print(f"Ranked {len(ranked_results)} unified results")
@@ -157,31 +163,26 @@ def aggregate_and_extract_unified(search_run_id: str):
         else:
             all_candidates = ranked_results
 
-        # Apply VERY lenient filter per spec - focus on finding pain signals
-        if len(all_candidates) <= 20:
-            # Pass all to LLM if we have 20 or fewer
-            filtered_candidates = all_candidates
-            print(f"Passing all {len(all_candidates)} candidates to LLM (≤20 threshold)")
-        else:
-            # Use MUCH more lenient thresholds per spec
-            filter_service = OpportunityFilterService()
-            filtered_candidates = filter_service.filter_candidates(
-                candidates=all_candidates,
-                min_comments=0,  # Accept all - let LLM decide
-                min_score=0      # Accept all scores - let LLM decide
-            )
+        # Skip keyword pre-filter - let LLM do ALL filtering
+        # Ensure platform diversity: mix of Reddit + HN sources
 
-            filter_stats = filter_service.get_filter_stats(
-                original_count=len(all_candidates),
-                filtered_count=len(filtered_candidates)
-            )
+        # Separate by platform
+        reddit_candidates = [c for c in all_candidates if c.get('source') == 'reddit']
+        hn_candidates = [c for c in all_candidates if c.get('source') == 'hackernews']
 
-            print(f"Pre-filter: {filter_stats['original_count']} → {filter_stats['filtered_count']} candidates ({filter_stats['reduction_percentage']}% reduction)")
+        # Take top 15 from each platform to ensure diversity
+        # This prevents one platform from dominating due to volume differences
+        top_reddit = reddit_candidates[:15]
+        top_hn = hn_candidates[:15]
 
-            # Ensure we always have at least 20 candidates for LLM
-            if len(filtered_candidates) < 20 and len(all_candidates) > 20:
-                filtered_candidates = all_candidates[:20]
-                print(f"Filter reduced too much, taking top 20 for LLM analysis")
+        # Combine and sort by composite score
+        filtered_candidates = sorted(
+            top_reddit + top_hn,
+            key=lambda x: x.get('composite_score', 0),
+            reverse=True
+        )[:30]
+
+        print(f"Sending top 30 candidates to LLM ({len(top_reddit)} Reddit + {len(top_hn)} HN)")
 
         # Step 6b: Run two-tier LLM analysis
         pain_points_count = 0
