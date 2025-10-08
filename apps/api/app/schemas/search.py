@@ -11,10 +11,9 @@ import re
 
 class TimeRangeEnum(str, Enum):
     """Valid time range values"""
-    HOUR_24 = "24h"
-    DAYS_7 = "7days"
-    DAYS_30 = "30days"
-    DAYS_90 = "90days"
+    MONTH_1 = "1month"
+    MONTHS_3 = "3months"
+    MONTHS_6 = "6months"
     YEAR_1 = "1year"
     ALL = "all"
 
@@ -58,7 +57,7 @@ class SearchRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "topics": ["productivity tools", "time management"],
-                "time_range": "7days"
+                "time_range": "1month"
             }
         }
 
@@ -100,7 +99,7 @@ class SearchRunStatus(BaseModel):
                 "search_run_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "completed",
                 "topics": ["productivity tools"],
-                "time_range": "7days",
+                "time_range": "1month",
                 "created_at": "2025-10-04T12:00:00Z",
                 "started_at": "2025-10-04T12:00:05Z",
                 "completed_at": "2025-10-04T12:00:25Z",

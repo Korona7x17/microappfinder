@@ -159,11 +159,27 @@ class HackerNewsService:
         cached_items = []
 
         for story in stories:
-            # Check if already cached and not expired
-            existing = self.get_cached_item(story["hn_id"])
+            # Check if already cached (including expired items)
+            existing = self.db.query(HackerNewsItem).filter_by(hn_id=story["hn_id"]).first()
 
             if existing and not existing.is_expired:
                 logger.debug(f"Using cached HN item: {story['hn_id']}")
+                cached_items.append(existing)
+                continue
+
+            if existing and existing.is_expired:
+                logger.debug(f"Updating expired HN item: {story['hn_id']}")
+                # Update existing expired item
+                existing.hn_type = story["hn_type"]
+                existing.author = story["author"]
+                existing.title = story["title"]
+                existing.text = story["text"]
+                existing.url = story["url"]
+                existing.hn_url = story["hn_url"]
+                existing.points = story["points"]
+                existing.comment_count = story["comment_count"]
+                existing.created_utc = datetime.utcfromtimestamp(story["created_at_i"])
+                existing.expires_at = datetime.utcnow() + timedelta(hours=48)
                 cached_items.append(existing)
                 continue
 
@@ -185,8 +201,7 @@ class HackerNewsService:
                 expires_at=expires_at
             )
 
-            # Handle duplicates with merge
-            self.db.merge(item)
+            self.db.add(item)
             cached_items.append(item)
 
         self.db.commit()

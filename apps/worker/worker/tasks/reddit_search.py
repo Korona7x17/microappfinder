@@ -104,6 +104,7 @@ def process_search(search_run_id: str):
         expires_at = datetime.utcnow() + timedelta(hours=48)
 
         saved_posts = []
+        post_ids = []  # Track post IDs for this search
         for post_data in filtered_posts:
             # Check if post already exists
             existing_post = db.query(RedditPost).filter(
@@ -129,6 +130,7 @@ def process_search(search_run_id: str):
                 db.add(reddit_post)
 
             saved_posts.append(post_data)
+            post_ids.append(post_data["reddit_id"])
 
             # Save to Redis cache with 48h TTL (update even if exists)
             redis_key = f"reddit:post:{post_data['reddit_id']}"
@@ -140,55 +142,21 @@ def process_search(search_run_id: str):
             )
 
         db.commit()
+
+        # Track which posts belong to this search
+        import json
+        redis_client.setex(
+            f"search:{search_run_id}:reddit_ids",
+            172800,  # 48 hours
+            json.dumps(post_ids)
+        )
+
         print(f"Saved {len(saved_posts)} posts to database and Redis")
 
-        # Step 6: Extract pain points
-        extracted_pain_points = PainPointExtractor.extract_multiple(saved_posts)
-
-        print(f"Extracted {len(extracted_pain_points)} pain points")
-
-        # Step 7: Calculate scores and save
-        pain_points_count = 0
-
-        for pain_point_data in extracted_pain_points:
-            original_post = pain_point_data["original_post"]
-
-            # Calculate composite score
-            relevance_score = CompositeScorer.calculate_composite_score({
-                "score": original_post.get("score", 0),
-                "comment_count": original_post.get("comment_count", 0),
-                "created_utc": original_post.get("created_utc"),
-                "text": f"{original_post.get('title', '')} {original_post.get('text', '')}"
-            })
-
-            # Calculate sentiment
-            from textblob import TextBlob
-            combined_text = f"{original_post.get('title', '')} {original_post.get('text', '')}"
-            sentiment_score = -TextBlob(combined_text).sentiment.polarity if combined_text else 0.0
-
-            # Create pain point record (Feature 002: Multi-source fields)
-            pain_point = PainPoint(
-                id=str(uuid_lib.uuid4()),
-                search_run_id=search_run.id,
-                extracted_text=pain_point_data["extracted_text"],
-                relevance_score=round(relevance_score, 4),
-                sentiment_score=round(sentiment_score, 2),
-                source_platform="reddit",  # Feature 002
-                source_post_ids=pain_point_data["source_posts"],  # Feature 002
-                source_deleted=False
-            )
-
-            db.add(pain_point)
-            pain_points_count += 1
-
-        # Step 8: Update search run status
-        search_run.status = "completed"
-        search_run.completed_at = datetime.utcnow()
-        search_run.pain_points_count = pain_points_count
-
+        # Step 6: Commit cached posts (unified aggregation will handle pain point extraction)
         db.commit()
 
-        print(f"Search {search_run_id} completed successfully with {pain_points_count} pain points")
+        print(f"Reddit search {search_run_id} completed: {len(saved_posts)} posts cached for unified aggregation")
 
     except Exception as e:
         # Handle failure

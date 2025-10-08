@@ -4,7 +4,7 @@ Pydantic model for pain point responses per contracts/openapi.yaml
 """
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
 
@@ -13,8 +13,8 @@ class PainPointResponse(BaseModel):
     id: str = Field(..., description="UUID of pain point")
     extracted_text: str = Field(
         ...,
-        max_length=500,
-        description="Summarized pain point (max 500 chars)"
+        max_length=10000,
+        description="Summarized pain point (max 10000 chars)"
     )
     relevance_score: float = Field(
         ...,
@@ -27,6 +27,10 @@ class PainPointResponse(BaseModel):
         ge=-1.0,
         le=1.0,
         description="Sentiment polarity (-1 to 1) from TextBlob"
+    )
+    llm_insights: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="LLM-generated opportunity insights (problem_summary, why_good_opportunity, key_quotes, scores)"
     )
     source_platform: str = Field(
         default="reddit",
@@ -48,9 +52,9 @@ class PainPointResponse(BaseModel):
 
     @validator("extracted_text")
     def validate_extracted_text_length(cls, v):
-        """Ensure extracted text doesn't exceed 500 chars"""
-        if len(v) > 500:
-            raise ValueError("Extracted text must not exceed 500 characters")
+        """Ensure extracted text doesn't exceed 10000 chars"""
+        if len(v) > 10000:
+            raise ValueError("Extracted text must not exceed 10000 characters")
         return v
 
     @validator("relevance_score", "sentiment_score")

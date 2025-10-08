@@ -129,18 +129,40 @@ class RedditAPIClient:
             List[dict]: List of normalized Reddit posts
         """
         # Map our time_range to PRAW time_filter
+        # PRAW options: day, week, month, year, all
         time_filter_map = {
-            "24h": "day",
-            "7days": "week",
-            "30days": "month",
-            "90days": "month",  # Reddit doesn't have 90 days, use month
+            "1month": "month",
+            "3months": "year",  # Closest option
+            "6months": "year",
             "1year": "year",
             "all": "all",
         }
-        praw_time_filter = time_filter_map.get(time_range, "week")
+        praw_time_filter = time_filter_map.get(time_range, "month")
 
-        # Build search query
-        query = " OR ".join(topics)
+        # Build search query targeting PAIN SIGNALS per spec
+        # Instead of just searching for generic topics, search for pain expressions
+        pain_phrases = [
+            '"I wish there was an app"',
+            '"is there an app that"',
+            '"how do you track"',
+            '"looking for a tool"',
+            '"need a way to"',
+            '"frustrated with"',
+            '"annoying that"',
+            '"pain point"',
+            '"would pay for"',
+            '"somebody should build"',
+            '"why isn\'t there"'
+        ]
+
+        # Simpler approach: just search for the topics directly
+        # Let the LLM analyze what's a pain point later
+        # This follows Greg Isenberg's approach - find what's trending first
+
+        # Simply search for topics - Reddit will find relevant discussions
+        query = " OR ".join(topics[:3])  # Just use the topics directly
+
+        print(f"Reddit search query: {query}")  # Log full query
 
         results = []
 

@@ -160,20 +160,27 @@ export default function PainPointsList({ searchRunId }: PainPointsListProps) {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col space-y-1">
-                    {painPoint.source_reddit_post_ids.slice(0, 2).map((postId, i) => (
+                    <span className="text-xs font-medium text-gray-600">
+                      {painPoint.source_platform}
+                    </span>
+                    {painPoint.source_post_ids.slice(0, 2).map((postId, i) => (
                       <a
                         key={i}
-                        href={`https://reddit.com/${postId}`}
+                        href={
+                          painPoint.source_platform === 'reddit'
+                            ? `https://reddit.com/${postId}`
+                            : `https://news.ycombinator.com/item?id=${postId}`
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-600 hover:text-blue-800"
                       >
-                        Reddit
+                        View Source
                       </a>
                     ))}
-                    {painPoint.source_reddit_post_ids.length > 2 && (
+                    {painPoint.source_post_ids.length > 2 && (
                       <span className="text-xs text-gray-500">
-                        +{painPoint.source_reddit_post_ids.length - 2} more
+                        +{painPoint.source_post_ids.length - 2} more
                       </span>
                     )}
                   </div>

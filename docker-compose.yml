@@ -76,8 +76,16 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./apps/worker:/app
-    command: python -m worker.main
+      - ./apps/api/app:/app/app
+      - ./apps/worker:/app/worker
+    environment:
+      - PYTHONPATH=/app/worker:/app
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/microappfinder
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    command: python /app/worker/run_worker.py
 
   # Next.js Frontend (optional for local development)
   web:

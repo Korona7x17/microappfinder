@@ -12,8 +12,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy worker code
-COPY . .
+# API and worker code will be mounted as volumes
 
-# Run the worker
-CMD ["python", "-m", "worker.main"]
+# Run the worker - use rq directly
+CMD ["rq", "worker", "--url", "redis://redis:6379/0", "default"]

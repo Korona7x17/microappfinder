@@ -13,17 +13,16 @@ interface SearchFormProps {
 }
 
 const TIME_RANGES = [
-  { value: '24h', label: 'Last 24 hours' },
-  { value: '7days', label: 'Last 7 days' },
-  { value: '30days', label: 'Last 30 days' },
-  { value: '90days', label: 'Last 90 days' },
-  { value: '1year', label: 'Last year' },
+  { value: '1month', label: 'Last month' },
+  { value: '3months', label: 'Last 3 months' },
+  { value: '6months', label: 'Last 6 months' },
+  { value: '1year', label: 'Last 12 months' },
   { value: 'all', label: 'All time' },
 ];
 
 export default function SearchForm({ onSearchCreated }: SearchFormProps) {
   const [topics, setTopics] = useState('');
-  const [timeRange, setTimeRange] = useState('7days');
+  const [timeRange, setTimeRange] = useState('1month');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,7 +68,7 @@ export default function SearchForm({ onSearchCreated }: SearchFormProps) {
 
       // Clear form
       setTopics('');
-      setTimeRange('7days');
+      setTimeRange('1month');
 
       // Notify parent
       if (onSearchCreated) {

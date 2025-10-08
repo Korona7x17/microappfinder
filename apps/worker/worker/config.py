@@ -21,8 +21,12 @@ class Settings(BaseSettings):
     # Provider APIs
     REDDIT_CLIENT_ID: str | None = None
     REDDIT_CLIENT_SECRET: str | None = None
+    REDDIT_USER_AGENT: str | None = None
     PRODUCTHUNT_API_KEY: str | None = None
-    
+
+    # Environment
+    ENVIRONMENT: str = "development"
+
     class Config:
         env_file = ".env"
 

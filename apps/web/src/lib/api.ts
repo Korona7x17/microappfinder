@@ -6,6 +6,12 @@
 // API Base URL from environment
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Debug logging
+if (typeof window !== 'undefined') {
+  console.log('🔍 API_BASE_URL:', API_BASE_URL);
+  console.log('🔍 NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+}
+
 // API Error class
 export class APIError extends Error {
   constructor(
@@ -51,6 +57,7 @@ async function fetchAPI<T>(
     },
   };
 
+  console.log('🌐 Fetching:', url);
   const response = await fetch(url, { ...defaultOptions, ...fetchOptions });
 
   // Handle non-OK responses
@@ -114,6 +121,16 @@ export interface PainPoint {
   extracted_text: string;
   relevance_score: number;
   sentiment_score: number;
+  llm_insights?: {
+    problem_summary: string;
+    why_good_opportunity: string;
+    key_quotes: string[];
+    urgency_score: number;
+    willingness_to_pay_score: number;
+    market_size_indicator: 'small' | 'medium' | 'large';
+    feasibility_score: number;
+    opportunity_score: number;
+  };
   source_platform: string;
   source_post_ids: string[];
   source_deleted: boolean;

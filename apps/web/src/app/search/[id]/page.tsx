@@ -156,7 +156,7 @@ function SearchResultsContent() {
         )}
 
         {/* Results */}
-        {results && results.pain_points.length > 0 ? (
+        {results && results.pain_points && results.pain_points.length > 0 ? (
           <>
             <div className="space-y-4 mb-8">
               {results.pain_points.map((painPoint) => (

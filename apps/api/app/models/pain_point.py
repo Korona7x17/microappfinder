@@ -44,7 +44,7 @@ class PainPoint(Base):
     extracted_text = Column(
         Text,
         nullable=False,
-        comment="Summarized pain point (NOT raw Reddit text, max 500 chars)"
+        comment="Summarized pain point (NOT raw Reddit text, max 2000 chars)"
     )
 
     # Scores
@@ -58,6 +58,13 @@ class PainPoint(Base):
         DECIMAL(3, 2),
         nullable=False,
         comment="Sentiment polarity (-1 to 1) from TextBlob"
+    )
+
+    # LLM Analysis (Feature 003: AI-powered opportunity detection)
+    llm_insights = Column(
+        JSONB,
+        nullable=True,
+        comment="LLM-generated insights: problem_summary, why_good_opportunity, key_quotes, scores"
     )
 
     # Source References
@@ -92,7 +99,7 @@ class PainPoint(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            "char_length(extracted_text) <= 500",
+            "char_length(extracted_text) <= 2000",
             name="check_extracted_text_length"
         ),
         CheckConstraint(

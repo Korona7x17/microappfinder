@@ -95,24 +95,21 @@ async def create_search(
     redis_conn = redis.Redis.from_url(settings.REDIS_URL)
     queue = Queue("default", connection=redis_conn)
 
-    import sys
-    import os
-    worker_path = os.path.join(os.path.dirname(__file__), '../../../worker')
-    if worker_path not in sys.path:
-        sys.path.insert(0, worker_path)
-
-    # Enqueue Reddit search
-    from worker.tasks.reddit_search import process_search
-    reddit_job = queue.enqueue(process_search, search_run.id)
+    # Enqueue Reddit search (use string path for cross-container RQ)
+    reddit_job = queue.enqueue(
+        'worker.tasks.reddit_search.process_search',
+        search_run.id
+    )
 
     # Enqueue HackerNews search (parallel)
-    from worker.tasks.hackernews_search import fetch_hn_for_search
-    hn_job = queue.enqueue(fetch_hn_for_search, search_run.id)
+    hn_job = queue.enqueue(
+        'worker.tasks.hackernews_search.fetch_hn_for_search',
+        search_run.id
+    )
 
     # Enqueue unified aggregation (runs after BOTH complete)
-    from worker.tasks.unified_search import aggregate_and_extract_unified
     unified_job = queue.enqueue(
-        aggregate_and_extract_unified,
+        'worker.tasks.unified_search.aggregate_and_extract_unified',
         search_run.id,
         depends_on=[reddit_job, hn_job]  # Wait for both to finish
     )
@@ -160,24 +157,21 @@ async def retry_search(
     redis_conn = redis.Redis.from_url(settings.REDIS_URL)
     queue = Queue("default", connection=redis_conn)
 
-    import sys
-    import os
-    worker_path = os.path.join(os.path.dirname(__file__), '../../../worker')
-    if worker_path not in sys.path:
-        sys.path.insert(0, worker_path)
-
-    # Enqueue Reddit search
-    from worker.tasks.reddit_search import process_search
-    reddit_job = queue.enqueue(process_search, search_run.id)
+    # Enqueue Reddit search (use string path for cross-container RQ)
+    reddit_job = queue.enqueue(
+        'worker.tasks.reddit_search.process_search',
+        search_run.id
+    )
 
     # Enqueue HackerNews search (parallel)
-    from worker.tasks.hackernews_search import fetch_hn_for_search
-    hn_job = queue.enqueue(fetch_hn_for_search, search_run.id)
+    hn_job = queue.enqueue(
+        'worker.tasks.hackernews_search.fetch_hn_for_search',
+        search_run.id
+    )
 
     # Enqueue unified aggregation (runs after BOTH complete)
-    from worker.tasks.unified_search import aggregate_and_extract_unified
     unified_job = queue.enqueue(
-        aggregate_and_extract_unified,
+        'worker.tasks.unified_search.aggregate_and_extract_unified',
         search_run.id,
         depends_on=[reddit_job, hn_job]
     )

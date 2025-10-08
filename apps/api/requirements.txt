@@ -37,8 +37,10 @@ textblob==0.17.1
 # Utilities
 python-dotenv==1.0.1
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
+bcrypt==4.0.1
 tenacity==8.2.3
+email-validator>=2.0.0
 
 # Monitoring
 sentry-sdk[fastapi]==1.40.6
