@@ -3,6 +3,13 @@
  * Fetch wrapper with cookie credentials and TypeScript types
  */
 
+import type {
+  OpportunityListItem,
+  OpportunityDetail,
+  OpportunityFilters,
+  OpportunitiesResponse,
+} from '@/types/opportunity';
+
 // API Base URL from environment
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -232,5 +239,75 @@ export const api = {
       }),
 
     getDashboard: () => fetchAPI<UserDashboard>('/api/reddit/dashboard'),
+  },
+
+  // Opportunities
+  opportunities: {
+    /**
+     * List opportunities with optional filters and pagination
+     * @param filters - Optional filter criteria for opportunities
+     * @param cursor - Base64 encoded cursor for pagination
+     * @param limit - Number of results per page (default: 12, max: 50)
+     * @returns Paginated opportunities response
+     */
+    list: async (
+      filters?: OpportunityFilters,
+      cursor?: string,
+      limit: number = 12
+    ): Promise<OpportunitiesResponse> => {
+      const params = new URLSearchParams();
+
+      // Add filter parameters
+      if (filters) {
+        if (filters.severity_min !== undefined) {
+          params.set('severity_min', String(filters.severity_min));
+        }
+        if (filters.severity_max !== undefined) {
+          params.set('severity_max', String(filters.severity_max));
+        }
+        if (filters.market_size && filters.market_size.length > 0) {
+          params.set('market_size', filters.market_size.join(','));
+        }
+        if (filters.monetization_min !== undefined) {
+          params.set('monetization_min', String(filters.monetization_min));
+        }
+        if (filters.monetization_max !== undefined) {
+          params.set('monetization_max', String(filters.monetization_max));
+        }
+        if (filters.complexity_min !== undefined) {
+          params.set('complexity_min', String(filters.complexity_min));
+        }
+        if (filters.complexity_max !== undefined) {
+          params.set('complexity_max', String(filters.complexity_max));
+        }
+        if (filters.competition_level && filters.competition_level.length > 0) {
+          params.set('competition_level', filters.competition_level.join(','));
+        }
+        if (filters.trend_direction && filters.trend_direction.length > 0) {
+          params.set('trend_direction', filters.trend_direction.join(','));
+        }
+      }
+
+      // Add pagination parameters
+      if (cursor) {
+        params.set('cursor', cursor);
+      }
+      params.set('limit', String(limit));
+
+      const queryString = params.toString();
+      const url = `/api/opportunities${queryString ? `?${queryString}` : ''}`;
+
+      return fetchAPI<OpportunitiesResponse>(url);
+    },
+
+    /**
+     * Get a single opportunity by ID
+     * @param id - Opportunity UUID
+     * @returns Full opportunity details
+     * @throws APIError with status 404 if opportunity not found
+     */
+    getById: (id: string): Promise<OpportunityDetail> => {
+      return fetchAPI<OpportunityDetail>(`/api/opportunities/${id}`);
+    },
   },
 };

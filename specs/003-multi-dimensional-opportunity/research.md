@@ -225,4 +225,246 @@ def enrich_existing_opportunity(opportunity_id, new_pain_point):
 
 ---
 
-*All research questions resolved. Ready for Phase 1 design.*
+## Frontend Discovery UI Research (2025-10-09)
+
+**Context**: User request to design modern, sleek frontend main page inspired by IdeaBrowser for opportunity discovery.
+
+### 6. Frontend UI/UX Design Patterns
+
+**Decision**: Card-based grid layout with minimalist design, inspired by IdeaBrowser
+
+**Rationale**:
+- Clean, scannable grid layout with generous white space
+- Card-based design with rounded corners and subtle shadows
+- Minimalist color palette (grayscale + brand blue #3B82F6)
+- Hierarchical typography for clear information architecture
+- Smooth animations and hover states
+
+**Design Elements**:
+- **Grid**: 1 col (mobile) → 2 col (tablet) → 3 col (desktop)
+- **Cards**: Opportunity title, summary, score badges
+- **Typography**: Inter font, font-bold headings, font-normal body
+- **Shadows**: shadow-sm default, shadow-md on hover
+- **Animations**: hover:scale-105, transition-transform duration-200
+
+**Alternatives Considered**:
+- List view → Rejected (less visual impact)
+- Masonry grid → Rejected (harder to scan)
+- Table view → Rejected (too dense for discovery UX)
+
+---
+
+### 7. Filtering & Sorting UX
+
+**Decision**: Side panel filters (desktop) / bottom sheet (mobile) with instant results
+
+**Rationale**:
+- Instant feedback (debounced 300ms) encourages filter exploration
+- 9 filter dimensions (6 scores + 3 enums) require dedicated space
+- Modern UX pattern removes friction (no "Apply" button)
+
+**Filter Types**:
+1. **Range Sliders** (0-10): Severity, Monetization, Complexity
+2. **Multi-Select Checkboxes**: Market Size, Competition, Trend
+3. **Sort Dropdown**: Severity, Monetization, Analyzed At (default), Complexity
+
+**Alternatives Considered**:
+- Top filter bar → Rejected (limited horizontal space)
+- Modal filters → Rejected (hides content)
+- "Apply" button → Rejected (adds unnecessary friction)
+
+---
+
+### 8. Cursor-Based Pagination (Frontend)
+
+**Decision**: SWR `useSWRInfinite` with "Load More" button
+
+**Rationale**:
+- Backend API already implements cursor pagination
+- SWR provides caching, automatic refetch, error handling
+- `useSWRInfinite` handles cursor management automatically
+- "Load More" button gives user control (vs pure infinite scroll)
+
+**Implementation**:
+```typescript
+import useSWRInfinite from 'swr/infinite';
+
+const getKey = (pageIndex, previousPageData) => {
+  if (previousPageData && !previousPageData.has_more) return null;
+  if (pageIndex === 0) return `/api/opportunities?limit=12`;
+  return `/api/opportunities?limit=12&cursor=${previousPageData.next_cursor}`;
+};
+
+const { data, size, setSize } = useSWRInfinite(getKey, fetcher);
+```
+
+**Alternatives Considered**:
+- Numbered pages → Rejected (cursor pagination doesn't support jumps)
+- Pure infinite scroll → Rejected (less user control, accessibility issues)
+
+---
+
+### 9. Performance Optimization (Frontend)
+
+**Decision**: Skeleton loaders + SWR caching + debounced filters + React.memo
+
+**Optimizations**:
+1. **Skeleton Loaders**: Reduce perceived load time (Tailwind animate-pulse)
+2. **SWR Caching**: 5min stale-while-revalidate, reduces API calls
+3. **Debounced Filters**: 300ms delay prevents API spam
+4. **React.memo**: Wrap OpportunityCard to prevent unnecessary re-renders
+
+**Performance Targets**:
+- <1s First Contentful Paint
+- <500ms API response (backend p95)
+- 60fps animations
+
+**Alternatives Considered**:
+- Server Components → Rejected (need client-side interactivity)
+- GraphQL → Rejected (REST API already built)
+- Virtualized list → Rejected (only 12 results per page)
+
+---
+
+### 10. State Management (Frontend)
+
+**Decision**: URL-based filter state + SWR for data fetching (no Redux/Zustand)
+
+**Rationale**:
+- URL query params provide shareable links and browser history support
+- SWR handles all data fetching, caching, loading states
+- No need for global state management library
+
+**Implementation**:
+```typescript
+import { useRouter, useSearchParams } from 'next/navigation';
+
+const searchParams = useSearchParams();
+const filters = {
+  severity_min: searchParams.get('severity_min') || undefined,
+  market_size: searchParams.get('market_size')?.split(',') || undefined,
+};
+
+const updateFilters = (newFilters) => {
+  const params = new URLSearchParams();
+  // Build params from newFilters
+  router.push(`/opportunities?${params.toString()}`);
+};
+```
+
+**Alternatives Considered**:
+- Redux → Rejected (overkill for filtering state)
+- Zustand → Rejected (URL state is simpler)
+- React Context → Rejected (URL eliminates prop drilling)
+
+---
+
+### 11. Dark Mode Implementation
+
+**Decision**: Use **next-themes** library with Tailwind dark mode and system preference detection
+
+**Rationale**:
+- Modern UX expectation (most professional apps support dark mode)
+- Reduces eye strain for users browsing in low-light environments
+- Enhances "AI/tech" aesthetic for modern discovery platform
+- IdeaBrowser aesthetic works well in both light and dark modes
+
+**Implementation Strategy**:
+
+1. **next-themes Library**:
+   - Zero-flash dark mode (prevents white flash on page load)
+   - SSR compatible (works with Next.js App Router)
+   - Automatic system preference detection (`prefers-color-scheme`)
+   - localStorage persistence (remembers user choice)
+   - Simple API: `useTheme()` hook
+
+2. **Tailwind Dark Mode**:
+   - Use `dark:` variant for all color classes
+   - Enable in tailwind.config: `darkMode: 'class'`
+   - next-themes adds `dark` class to `<html>` element
+
+3. **Color System**:
+   ```typescript
+   // Light mode
+   - Background: bg-gray-50 (#F9FAFB)
+   - Cards: bg-white (#FFFFFF)
+   - Text: text-gray-900 (headings), text-gray-600 (body)
+   - Borders: border-gray-200
+
+   // Dark mode
+   - Background: dark:bg-gray-950 (#030712)
+   - Cards: dark:bg-gray-900 (#111827)
+   - Text: dark:text-gray-100 (headings), dark:text-gray-400 (body)
+   - Borders: dark:border-gray-800
+
+   // Accent colors (adapt for contrast)
+   - Blue CTA: bg-blue-600 → dark:bg-blue-500
+   - Score badges: Adjust opacity/saturation for dark readability
+   ```
+
+4. **Toggle Component**:
+   - Sun icon (light mode) / Moon icon (dark mode)
+   - Place in header (top-right corner)
+   - Smooth transition animation (200ms)
+   - Keyboard accessible (Enter/Space to toggle)
+
+5. **Implementation Example**:
+   ```tsx
+   // app/layout.tsx
+   import { ThemeProvider } from 'next-themes'
+
+   export default function RootLayout({ children }) {
+     return (
+       <html suppressHydrationWarning>
+         <body>
+           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+             {children}
+           </ThemeProvider>
+         </body>
+       </html>
+     )
+   }
+
+   // components/ThemeToggle.tsx
+   import { useTheme } from 'next-themes'
+
+   export function ThemeToggle() {
+     const { theme, setTheme } = useTheme()
+     return (
+       <button
+         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+         className="p-2 rounded-lg bg-gray-200 dark:bg-gray-800"
+       >
+         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+       </button>
+     )
+   }
+   ```
+
+**Component Updates Required**:
+- **OpportunityCard**: Add dark: variants for bg, text, shadow
+- **FilterPanel**: Dark mode for inputs, sliders, checkboxes
+- **Score Badges**: Adjust badge colors for dark mode contrast
+- **Navigation**: Dark header background and text
+- **Empty/Loading States**: Dark-friendly skeleton loaders
+
+**Testing Checklist**:
+- [ ] System preference auto-detection works (test with OS dark mode)
+- [ ] Manual toggle persists across page reloads
+- [ ] No flash of unstyled content on initial load
+- [ ] All components readable in both modes
+- [ ] Smooth transition between themes (no jarring jumps)
+
+**Alternatives Considered**:
+- **CSS variables only**: Rejected—Tailwind dark: variant more maintainable with existing setup
+- **Manual toggle only (no system detection)**: Rejected—users expect auto-detection
+- **third-party theme library**: Rejected—next-themes is lightweight and Next.js-specific
+
+**Performance Impact**:
+- next-themes bundle: ~1.5KB gzipped (negligible)
+- No runtime performance impact (CSS classes only)
+- localStorage read is synchronous but fast (<1ms)
+
+---
+
+*All research questions resolved (backend + frontend + dark mode). Ready for Phase 1 design.*

@@ -20,8 +20,8 @@ class OpportunityAnalysisService:
     """
     LLM-powered opportunity analysis service
 
-    Primary: GPT-4o-mini with structured JSON output
-    Fallback: Claude Sonnet 3.5 on failure
+    Primary: Claude Haiku 3.5 (cost-effective: $1.00/$5.00 per 1M tokens)
+    Fallback: GPT-4o-mini on failure (cheaper: $0.15/$0.60 per 1M tokens)
     Token budget: 2000 input + 500 output = 2500 total
     """
 
@@ -30,13 +30,13 @@ class OpportunityAnalysisService:
         openai_key = os.getenv("OPENAI_API_KEY")
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
 
-        if not openai_key:
-            logger.warning("OPENAI_API_KEY not set - GPT-4o-mini analysis will fail")
         if not anthropic_key:
-            logger.warning("ANTHROPIC_API_KEY not set - Claude fallback unavailable")
+            logger.warning("ANTHROPIC_API_KEY not set - Claude Haiku analysis will fail")
+        if not openai_key:
+            logger.warning("OPENAI_API_KEY not set - GPT-4o-mini fallback unavailable")
 
-        self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
         self.anthropic_client = Anthropic(api_key=anthropic_key) if anthropic_key else None
+        self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
 
     def analyze_pain_point(self, pain_point: PainPoint) -> Optional[OpportunityScores]:
         """
@@ -49,21 +49,83 @@ class OpportunityAnalysisService:
             OpportunityScores object with 6-dimensional analysis, or None on failure
 
         Token budget: ~2000 input (prompt + context) + 500 output = 2500 total
+        Cost per call: ~$0.0125 (Claude Haiku 3.5)
         """
         logger.info(f"Analyzing pain point {pain_point.id} from {pain_point.source_platform}")
 
-        # Try GPT-4o-mini first
+        # Try Claude Haiku first (cost-effective)
         try:
-            return self._analyze_with_openai(pain_point)
+            return self._analyze_with_claude(pain_point)
         except Exception as e:
-            logger.error(f"GPT-4o-mini analysis failed for {pain_point.id}: {e}", exc_info=True)
+            logger.error(f"Claude Haiku analysis failed for {pain_point.id}: {e}", exc_info=True)
 
-            # Fallback to Claude Sonnet
-            return self._fallback_to_claude(pain_point)
+            # Fallback to GPT-4o-mini (cheaper fallback)
+            return self._fallback_to_openai(pain_point)
 
-    def _analyze_with_openai(self, pain_point: PainPoint) -> Optional[OpportunityScores]:
+    def _analyze_with_claude(self, pain_point: PainPoint) -> Optional[OpportunityScores]:
         """
-        Analyze pain point using GPT-4o-mini with structured JSON output
+        Analyze pain point using Claude Haiku 3.5 (cost-effective)
+
+        Args:
+            pain_point: Pain point to analyze
+
+        Returns:
+            OpportunityScores or None on failure
+        """
+        if not self.anthropic_client:
+            raise ValueError("Anthropic client not initialized")
+
+        prompt = self._build_analysis_prompt(pain_point)
+
+        try:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-5-haiku-20241022",  # Cost-effective model
+                max_tokens=500,
+                temperature=0.3,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt + "\n\nIMPORTANT: Respond with valid JSON only, no markdown formatting."
+                    }
+                ]
+            )
+
+            # Extract JSON from response
+            content = response.content[0].text
+
+            # Clean potential markdown formatting
+            if content.startswith("```json"):
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif content.startswith("```"):
+                content = content.split("```")[1].split("```")[0].strip()
+
+            data = json.loads(content)
+
+            # Validate and parse with Pydantic
+            scores = OpportunityScores(**data)
+
+            # Log token usage
+            usage = response.usage
+            logger.info(
+                f"Claude Haiku analysis complete for {pain_point.id}: "
+                f"{usage.input_tokens} input + {usage.output_tokens} output tokens"
+            )
+
+            return scores
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON from Claude Haiku: {e}")
+            return None
+        except ValidationError as e:
+            logger.error(f"Validation error from Claude Haiku output: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            raise  # Re-raise to trigger OpenAI fallback
+
+    def _fallback_to_openai(self, pain_point: PainPoint) -> Optional[OpportunityScores]:
+        """
+        Fallback to GPT-4o-mini when Claude Haiku fails
 
         Args:
             pain_point: Pain point to analyze
@@ -72,7 +134,10 @@ class OpportunityAnalysisService:
             OpportunityScores or None on failure
         """
         if not self.openai_client:
-            raise ValueError("OpenAI client not initialized")
+            logger.error("OpenAI fallback unavailable - no API key")
+            return None
+
+        logger.info(f"Falling back to GPT-4o-mini for {pain_point.id}")
 
         prompt = self._build_analysis_prompt(pain_point)
 
@@ -105,7 +170,7 @@ class OpportunityAnalysisService:
             # Log token usage for monitoring
             usage = response.usage
             logger.info(
-                f"OpenAI analysis complete for {pain_point.id}: "
+                f"GPT-4o-mini analysis complete for {pain_point.id}: "
                 f"{usage.prompt_tokens} input + {usage.completion_tokens} output = {usage.total_tokens} tokens"
             )
 
@@ -118,71 +183,7 @@ class OpportunityAnalysisService:
             logger.error(f"Validation error from GPT-4o-mini output: {e}")
             return None
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
-            raise  # Re-raise to trigger Claude fallback
-
-    def _fallback_to_claude(self, pain_point: PainPoint) -> Optional[OpportunityScores]:
-        """
-        Fallback to Claude Sonnet 3.5 when GPT-4o-mini fails
-
-        Args:
-            pain_point: Pain point to analyze
-
-        Returns:
-            OpportunityScores or None on failure
-        """
-        if not self.anthropic_client:
-            logger.error("Claude fallback unavailable - no API key")
-            return None
-
-        logger.info(f"Falling back to Claude Sonnet for {pain_point.id}")
-
-        prompt = self._build_analysis_prompt(pain_point)
-
-        try:
-            response = self.anthropic_client.messages.create(
-                model="claude-sonnet-3-5-20241022",
-                max_tokens=500,
-                temperature=0.3,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt + "\n\nIMPORTANT: Respond with valid JSON only, no markdown formatting."
-                    }
-                ]
-            )
-
-            # Extract JSON from response
-            content = response.content[0].text
-
-            # Clean potential markdown formatting
-            if content.startswith("```json"):
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif content.startswith("```"):
-                content = content.split("```")[1].split("```")[0].strip()
-
-            data = json.loads(content)
-
-            # Validate and parse with Pydantic
-            scores = OpportunityScores(**data)
-
-            # Log token usage
-            usage = response.usage
-            logger.info(
-                f"Claude analysis complete for {pain_point.id}: "
-                f"{usage.input_tokens} input + {usage.output_tokens} output tokens"
-            )
-
-            return scores
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON from Claude: {e}")
-            return None
-        except ValidationError as e:
-            logger.error(f"Validation error from Claude output: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Claude API error: {e}", exc_info=True)
+            logger.error(f"OpenAI API error: {e}", exc_info=True)
             return None
 
     def _build_analysis_prompt(self, pain_point: PainPoint) -> str:

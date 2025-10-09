@@ -1,336 +1,450 @@
-# Implementation Plan: Multi-Dimensional Opportunity Analysis Layer
 
-**Branch**: `003-multi-dimensional-opportunity` | **Date**: 2025-10-08 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/003-multi-dimensional-opportunity/spec.md`
+# Implementation Plan: Multi-Dimensional Opportunity Discovery Frontend
+
+**Branch**: `003-multi-dimensional-opportunity` | **Date**: 2025-10-09 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/003-multi-dimensional-opportunity/spec.md` + User Request: "Design frontend main page with modern, sleek, AI look UI/UX inspired by IdeaBrowser"
 
 ## Execution Flow (/plan command scope)
 ```
-1. Load feature spec from Input path → ✅ COMPLETE
-2. Fill Technical Context → ✅ COMPLETE
-3. Fill Constitution Check section → ✅ COMPLETE
-4. Evaluate Constitution Check → ✅ PASS
-5. Execute Phase 0 → research.md → ✅ COMPLETE
-6. Execute Phase 1 → contracts, data-model.md, quickstart.md, CLAUDE.md → ✅ COMPLETE
-7. Re-evaluate Constitution Check → ✅ PASS
-8. Plan Phase 2 → Describe task generation approach → ✅ COMPLETE
-9. STOP - Ready for /tasks command
+1. Load feature spec from Input path ✅
+   → Spec loaded: Multi-dimensional opportunity analysis layer
+2. Fill Technical Context (scan for NEEDS CLARIFICATION) ✅
+   → Detect Project Type: web (Next.js + FastAPI)
+   → Set Structure Decision: Monorepo with apps/web frontend
+3. Fill the Constitution Check section ✅
+4. Evaluate Constitution Check section ✅
+   → Violations: None (frontend within scope)
+   → Update Progress Tracking: Initial Constitution Check ✅
+5. Execute Phase 0 → research.md [PENDING]
+6. Execute Phase 1 → contracts, data-model.md, quickstart.md, CLAUDE.md [PENDING]
+7. Re-evaluate Constitution Check [PENDING]
+8. Plan Phase 2 → Task generation approach [PENDING]
+9. STOP - Ready for /tasks command [PENDING]
 ```
+
+**IMPORTANT**: The /plan command STOPS at step 7. Phases 2-4 are executed by other commands:
+- Phase 2: /tasks command creates tasks.md
+- Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
 
-**Primary Requirement**: Add multi-dimensional opportunity analysis layer that transforms raw pain points into validated business opportunities with IdeaBrowser-level sophistication.
+**Primary Requirement**: Transform MicroAppFinder from a search-first tool into a discovery-first platform where users browse a curated, growing catalog of validated micro-app opportunities—similar to IdeaBrowser's browsing model.
 
-**Technical Approach**: After each search completes, automatically analyze the top 5-10 pain points to generate six-dimensional scores using AI analysis. Store analyzed opportunities in a persistent `opportunities` table (surviving beyond 48h Reddit compliance window). Scores include: (1) problem severity 0-10, (2) market size indicator (niche/mid/large), (3) monetization potential 0-10, (4) technical complexity 0-10, (5) competition level (low/medium/high/saturated), and (6) trend direction (declining/stable/growing/explosive). All analysis runs asynchronously without affecting user-facing search performance. API endpoints support global access, filtering, sorting with 12 results/page and <500ms p95 response time.
+**Technical Approach**:
+- Build modern, sleek frontend main page inspired by IdeaBrowser's minimalist design
+- **Support both light and dark mode** with automatic system preference detection + manual toggle
+- Display opportunities from the persistent opportunities database (6-dimensional scores)
+- Implement filtering (by severity, market size, monetization, complexity, competition, trend)
+- Add sorting capabilities (by any dimensional score)
+- Cursor-based pagination (12 results per page with title + summary)
+- Public access (no authentication required for browsing)
+- Maintain <500ms p95 response time per constitutional performance requirements
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (apps/api, apps/worker)
-**Primary Dependencies**: FastAPI, SQLAlchemy, Alembic, RQ (Redis Queue), OpenAI/Anthropic LLM APIs, Pydantic
-**Storage**: PostgreSQL (persistent opportunities table + ephemeral pain_points with 48h TTL)
-**Testing**: pytest (unit + integration + contract tests)
-**Target Platform**: Linux server (Docker Compose dev, Hetzner VPS prod)
-**Project Type**: Web (Next.js frontend + FastAPI backend + RQ worker)
-**Performance Goals**: <500ms p95 API response time, 80%+ analysis coverage, <30s analysis completion target
-**Constraints**: Reddit compliance (48h TTL for raw content), async analysis (no user-facing impact), LLM token budgets (cheap models for bulk work)
-**Scale/Scope**: Handle 100+ concurrent users, process 1000+ signals per run (Pro tier), store 1 year history
+**Language/Version**: TypeScript 5.3+ (Next.js 14), Python 3.11+ (FastAPI backend)
+**Primary Dependencies**:
+- Frontend: Next.js 14 App Router, React 18, Tailwind CSS, shadcn/ui, SWR for data fetching, **next-themes** for dark mode
+- Backend: FastAPI, SQLAlchemy, Pydantic (already implemented in Phase 003)
+**Storage**: PostgreSQL (opportunities table with 6-dimensional scores already exists)
+**Testing**: Jest + React Testing Library (frontend), pytest (backend contract tests)
+**Target Platform**: Web browsers (desktop + mobile responsive)
+**Project Type**: web (monorepo with apps/web frontend + apps/api backend)
+**Performance Goals**: <500ms p95 API response, <1s page load, smooth 60fps animations
+**Constraints**:
+- Must use existing opportunities API endpoints (GET /api/opportunities with filtering/sorting)
+- Reddit compliance: display only derived insights (opportunities), not raw Reddit content
+- 12 results per page (lightweight response with title + summary only)
+- Cursor-based pagination for scalability
+**Scale/Scope**: ~100-1000 opportunities initially, growing catalog over time, 100 concurrent users (MVP)
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Initial Check (Pre-Research) ✅ PASS
+### I. Micro-App Fit First ✅ PASS
+- **1 core job-to-be-done**: Discover validated micro-app opportunities ✅
+- **≤ 3 screens**: Homepage (browse) → Opportunity Detail → that's it ✅
+- **Buildable in < 1 week**: Frontend-only work, API already exists ✅
+- **≤ 15 seconds user input**: No input required (browse-first model) ✅
+- **$0 infrastructure cost initially**: Uses existing database and API ✅
 
-| Principle | Status | Justification |
-|-----------|--------|---------------|
-| **I. Micro-App Fit First** | ✅ PASS | Feature enhances opportunity discovery infrastructure (not user-facing MVP yet); supports micro-app brief generation in future phases |
-| **II. Lean & Fast-to-Ship** | ✅ PASS | MVP approach: backend-only analysis (no UI changes), async execution, provider-agnostic LLM abstraction |
-| **III. Data Privacy & Compliance** | ✅ PASS | Maintains 48h TTL for raw Reddit content; only derived insights (scores) stored indefinitely per ToS compliance |
-| **IV. Deterministic Scoring** | ✅ PASS | Six-dimensional rubric with explicit scoring criteria; confidence levels tracked; scores auditable |
-| **V. Quality Over Quantity** | ✅ PASS | Targets 80%+ coverage with 30s analysis time; accumulative enrichment improves scores over time |
-| **VI. Source Reliability** | ✅ PASS | Uses existing Reddit API + HN Algolia (no new sources); complies with existing data fetching patterns |
-| **VII. Observability** | ⚠️ MINOR DEVIATION | Admin dashboard planned (FR-035) but not implemented in Phase 1; structured logging will track analysis |
+**Rationale**: Pure discovery UI for existing backend—fits micro-app scope perfectly.
 
-**Deviation Justification**: Admin dashboard deferred to future phase to maintain lean MVP; structured logging provides sufficient observability for Phase 1 validation.
+### II. Lean & Fast-to-Ship ✅ PASS
+- MVP speed over perfection: Ship browsing UI, iterate based on feedback ✅
+- No premature optimization: Simple grid layout → enhance later ✅
+- Provider-agnostic: Frontend only consumes REST API ✅
+- Docker-first: Next.js already containerized ✅
+- No bloat: shadcn/ui components only (no heavy component libraries) ✅
 
-### Post-Design Check (After Phase 1) ✅ PASS
-*All principles satisfied. No new violations introduced during design phase.*
+**Rationale**: Leveraging existing shadcn/ui setup, no new dependencies needed.
+
+### III. Data Privacy & Compliance ✅ PASS
+- Store only public content: Frontend displays derived opportunity insights (no raw Reddit content) ✅
+- No PII collection: Public browsing, no user tracking ✅
+- Reddit compliance: Opportunities contain analysis/scores, not verbatim user text ✅
+
+**Rationale**: Frontend displays only the persistent opportunities table (derived insights).
+
+### IV. Deterministic Scoring + Transparent Methodology ✅ PASS
+- Display all 6-dimensional scores: severity, market size, monetization, complexity, competition, trend ✅
+- Show confidence level for each opportunity ✅
+- Expose score components in detail view ✅
+
+**Rationale**: UI showcases the 6-dimensional scoring system transparently.
+
+### V. Quality Over Quantity ✅ PASS
+- Display 12 high-quality opportunities per page (not overwhelming) ✅
+- Filter options to surface best matches ✅
+- Sort by any dimension to find top opportunities ✅
+
+**Rationale**: Curated browsing experience, not firehose of data.
+
+### VI. Source Reliability & Safety ✅ PASS
+- Display source attribution (Reddit/HN) per opportunity ✅
+- No scraping/fetching in frontend (consumes API only) ✅
+
+### VII. Observability & Debugging ✅ PASS
+- Error states for API failures ✅
+- Loading states during data fetch ✅
+- Empty states when no opportunities match filters ✅
+
+**Rationale**: Standard UX error handling patterns.
+
+**GATE STATUS**: ✅ All constitutional principles satisfied
 
 ## Project Structure
 
 ### Documentation (this feature)
 ```
 specs/003-multi-dimensional-opportunity/
+├── spec.md              # Feature specification (already exists)
 ├── plan.md              # This file (/plan command output)
-├── research.md          # Phase 0 output (decisions, rationales)
-├── data-model.md        # Phase 1 output (Opportunity entity schema)
-├── quickstart.md        # Phase 1 output (local testing guide)
-├── contracts/           # Phase 1 output (API specs)
-│   ├── opportunity_analysis.yaml    # Analysis trigger contract
-│   └── opportunity_api.yaml         # Query/retrieval endpoints
+├── research.md          # Phase 0 output (/plan command) [PENDING]
+├── data-model.md        # Phase 1 output (/plan command) [PENDING]
+├── quickstart.md        # Phase 1 output (/plan command) [PENDING]
+├── contracts/           # Phase 1 output (/plan command) [PENDING]
 └── tasks.md             # Phase 2 output (/tasks command - NOT created by /plan)
 ```
 
 ### Source Code (repository root)
 ```
-apps/api/
-├── app/
-│   ├── models/
-│   │   ├── opportunity.py          # NEW: Opportunity entity (6 dimensions + metadata)
-│   │   └── pain_point.py           # EXISTING: Updated with opportunity relationship
-│   ├── services/
-│   │   ├── opportunity_analysis_service.py  # NEW: Orchestrates 6-dimensional scoring
-│   │   └── llm_service.py                   # EXISTING: Updated with analysis prompts
-│   └── routers/
-│       └── opportunities.py        # NEW: API endpoints (list, filter, sort)
-└── alembic/versions/
-    └── xxx_add_opportunities_table.py  # NEW: Migration script
-
-apps/worker/
-└── tasks/
-    ├── opportunity_analysis.py     # NEW: RQ task triggered after unified aggregation
-    └── unified_search.py           # EXISTING: Updated to enqueue analysis task
-
-tests/
-├── contract/
-│   ├── test_opportunity_analysis_contract.py  # NEW: Contract tests for analysis
-│   └── test_opportunity_api_contract.py       # NEW: Contract tests for API
-├── integration/
-│   └── test_opportunity_end_to_end.py         # NEW: Full pipeline test
-└── unit/
-    ├── test_opportunity_model.py               # NEW: Entity validation tests
-    └── test_opportunity_analysis_service.py    # NEW: Scoring logic tests
+apps/
+├── web/                              # Next.js Frontend (PRIMARY FOCUS)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx             # NEW: Discovery homepage (replaces current landing)
+│   │   │   ├── opportunities/       # NEW: Opportunity browsing routes
+│   │   │   │   ├── page.tsx         # Browse/filter opportunities
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx     # Opportunity detail view
+│   │   │   ├── dashboard/           # EXISTING: User search dashboard (keep as-is)
+│   │   │   ├── search/              # EXISTING: Search results (keep as-is)
+│   │   │   └── (auth)/              # EXISTING: Auth pages (keep as-is)
+│   │   ├── components/
+│   │   │   ├── opportunities/       # NEW: Opportunity components
+│   │   │   │   ├── OpportunityCard.tsx
+│   │   │   │   ├── OpportunityGrid.tsx
+│   │   │   │   ├── FilterPanel.tsx
+│   │   │   │   ├── SortControls.tsx
+│   │   │   │   ├── ScoreBadges.tsx
+│   │   │   │   └── ThemeToggle.tsx  # NEW: Dark mode toggle button
+│   │   │   └── ui/                  # EXISTING: shadcn/ui components
+│   │   ├── lib/
+│   │   │   ├── api.ts               # UPDATE: Add opportunities API methods
+│   │   │   └── utils.ts             # EXISTING
+│   │   └── hooks/                   # NEW: Custom React hooks
+│   │       └── useOpportunities.ts  # Data fetching hook with SWR
+│   └── tests/
+│       └── components/              # NEW: Component tests
+│           └── opportunities/
+│
+├── api/                              # FastAPI Backend (ALREADY IMPLEMENTED)
+│   ├── app/
+│   │   ├── routers/
+│   │   │   └── opportunities.py     # EXISTING: GET /api/opportunities (no changes)
+│   │   ├── models/
+│   │   │   └── opportunity.py       # EXISTING: Opportunity model (no changes)
+│   │   └── services/
+│   │       └── opportunity_service.py # EXISTING: Query logic (no changes)
+│   └── tests/
+│       └── contract/
+│           └── test_opportunity_api_contract.py # EXISTING: API contract tests (no changes)
+│
+└── worker/                           # RQ Worker (ALREADY IMPLEMENTED)
+    └── worker/
+        └── tasks/
+            └── opportunity_analysis.py # EXISTING: LLM analysis task (no changes)
 ```
 
-**Structure Decision**: Web application (multi-app monorepo). Feature spans `apps/api` (models + services + routers), `apps/worker` (async RQ tasks), and `tests/` (contract + integration + unit). No frontend changes (remains top 5 results presentation).
+**Structure Decision**: **Web application (Option 2)** - Monorepo with separate frontend (apps/web) and backend (apps/api). Frontend consumes existing backend API endpoints. No backend changes required for this phase—all work is frontend-only.
 
 ## Phase 0: Outline & Research
 
-**Status**: ✅ COMPLETE
+**Objective**: Resolve all unknowns and research best practices for IdeaBrowser-inspired discovery UI.
 
-### Research Findings (see research.md for details)
+### Research Tasks
 
-1. **LLM Analysis Strategy**: Use structured prompts with JSON schema enforcement for six-dimensional scoring. GPT-4o-mini for bulk analysis (cost-effective), Claude Sonnet for complex edge cases (accuracy). Pydantic models validate LLM outputs.
+1. **UI/UX Design Patterns from IdeaBrowser Analysis**
+   - Decision: Modern, minimalist card-based layout
+   - Rationale: Based on WebFetch analysis—clean grid, generous white space, scannable information
+   - Design elements to adopt:
+     * Card-based opportunity display with rounded corners and subtle shadows
+     * Minimalist color palette (grayscale + brand accent colors)
+     * Hierarchical typography (clear heading/body distinctions)
+     * Modular, scannable content blocks
+     * Soft gradients and smooth animations
+     * Generous white space for breathing room
+   - Alternatives considered: List view (rejected—less visual impact), Masonry grid (rejected—harder to scan)
 
-2. **Database Schema Design**: Add `opportunities` table with JSONB columns for `trend_data` (time-series), `geographic_spread` (array), `affected_industries` (array). Use PostgreSQL JSONB indexing for query performance. Nullable `pain_point_id` FK (set NULL on cascade delete after 48h).
+2. **Filtering & Sorting UX Best Practices**
+   - Decision: Side panel filter UI with instant results (no "Apply" button)
+   - Rationale: Reduces friction, provides instant feedback
+   - Filters to implement:
+     * Severity range slider (0-10)
+     * Market size multi-select (niche/mid/large)
+     * Monetization range slider (0-10)
+     * Technical complexity range slider (0-10)
+     * Competition level multi-select (low/medium/high/saturated)
+     * Trend direction multi-select (declining/stable/growing/explosive)
+   - Alternatives considered: Top filter bar (rejected—limited space), Modal filters (rejected—hides content)
 
-3. **Async Task Orchestration**: Use RQ's job `depends_on` parameter to chain analysis after unified aggregation completes. Analysis task runs in dedicated worker pool (separate from search tasks) to prevent blocking.
+3. **Cursor-Based Pagination Implementation**
+   - Decision: Use SWR with infinite scroll + "Load More" button fallback
+   - Rationale: Modern UX pattern, works well with cursor pagination
+   - Implementation:
+     * SWR hook with `useSWRInfinite` for cursor-based fetching
+     * Encode cursor as Base64(JSON({id, analyzed_at}))
+     * Display "Load More" button at end of grid
+     * Optional: Infinite scroll trigger when user scrolls to bottom (progressive enhancement)
+   - Alternatives considered: Numbered pages (rejected—cursor pagination doesn't support jumps), Pure infinite scroll (rejected—less user control)
 
-4. **API Pagination Strategy**: Implement cursor-based pagination using `id` + `analyzed_at` composite cursor. Avoids OFFSET performance issues for deep pages. Return 12 results/page with lightweight response (title + summary only; full details on-demand).
+4. **Performance Optimization Strategies**
+   - Decision: Image lazy loading, skeleton loaders, SWR caching
+   - Rationale: Meets <1s page load and <500ms API response requirements
+   - Optimizations:
+     * Use `next/image` for any visuals (if added later)
+     * Skeleton loaders during initial fetch
+     * SWR cache with 5min stale-while-revalidate
+     * Debounced filter inputs (300ms delay)
+   - Alternatives considered: Server components (rejected—need client interactivity for filters), GraphQL (rejected—REST API already built)
 
-5. **Accumulative Enrichment Pattern**: Detect duplicate pain points via semantic similarity (existing dedup service). Merge new signals into existing opportunity, recompute scores with richer context. Track `enrichment_count` and `last_enriched_at` timestamps.
+5. **Responsive Design Breakpoints**
+   - Decision: Mobile-first with Tailwind breakpoints (sm: 640px, md: 768px, lg: 1024px, xl: 1280px)
+   - Rationale: Tailwind CSS already configured, standard breakpoints
+   - Layout:
+     * Mobile (< 640px): Single column grid, bottom sheet filters
+     * Tablet (640-1024px): 2-column grid, collapsible side filters
+     * Desktop (1024px+): 3-column grid, persistent side filters
+   - Alternatives considered: Desktop-first (rejected—mobile traffic significant), Custom breakpoints (rejected—unnecessary complexity)
 
-**Output**: All technical unknowns resolved. Design decisions documented in [research.md](./research.md).
+6. **Color Palette & Typography**
+   - Decision: Tailwind default gray scale + brand blue accent (#3B82F6)
+   - Rationale: Matches IdeaBrowser minimalism, already configured
+   - Typography:
+     * Headings: font-bold with tight tracking
+     * Body: font-normal with relaxed line-height (1.625)
+     * Scores/badges: font-medium with smaller size
+   - Alternatives considered: Custom design system (rejected—over-engineering for MVP), Material UI (rejected—heavier bundle)
+
+7. **Dark Mode Implementation**
+   - Decision: Use **next-themes** with automatic system preference detection + manual toggle
+   - Rationale: Modern UX expectation, reduces eye strain, professional aesthetic
+   - Implementation:
+     * `next-themes` ThemeProvider wraps app (supports SSR, no flash)
+     * Tailwind dark: variant for all color classes
+     * System preference auto-detection (`prefers-color-scheme`)
+     * Persistent user preference (localStorage)
+     * Toggle button in header (sun/moon icon)
+   - Color system:
+     * **Light mode**: bg-gray-50, text-gray-900, card bg-white
+     * **Dark mode**: bg-gray-950, text-gray-100, card bg-gray-900
+     * **Accent consistent**: blue-600 (light) → blue-500 (dark) for better contrast
+     * **Score badges**: Adjust opacity/brightness for dark mode readability
+   - Alternatives considered: CSS variables only (rejected—Tailwind dark: more maintainable), Manual toggle only (rejected—missing auto-detection)
+
+**Output**: research.md with all design decisions documented
 
 ## Phase 1: Design & Contracts
 
-**Status**: ✅ COMPLETE
+*Prerequisites: research.md complete*
 
-### 1. Data Model (data-model.md)
+### 1. Data Model (`data-model.md`)
 
-**Primary Entity**: `Opportunity`
+**Frontend Data Models** (TypeScript interfaces):
 
-```python
-class Opportunity(Base):
-    __tablename__ = "opportunities"
+```typescript
+// Opportunity list item (lightweight response)
+interface OpportunityListItem {
+  id: string; // UUID
+  title: string; // Derived from pain_point.extracted_text (first 100 chars)
+  summary: string; // Derived from pain_point.extracted_text (first 300 chars)
+  problem_severity: number; // 0-10
+  market_size: 'niche' | 'mid' | 'large';
+  monetization_potential: number; // 0-10
+  technical_complexity: number; // 0-10
+  competition_level: 'low' | 'medium' | 'high' | 'saturated';
+  trend_direction: 'declining' | 'stable' | 'growing' | 'explosive';
+  confidence_level: number; // 0-1
+  analyzed_at: string; // ISO 8601 timestamp
+}
 
-    id: UUID (PK)
-    pain_point_id: UUID | None (FK → pain_points.id, ON DELETE SET NULL)
+// Opportunity detail (full response)
+interface OpportunityDetail extends OpportunityListItem {
+  trend_data: {
+    // Time-series JSON
+    timestamps: string[];
+    discussion_counts: number[];
+    growth_rate: number;
+  };
+  geographic_spread: string[]; // e.g., ["US", "UK", "Global"]
+  affected_industries: string[]; // e.g., ["SaaS", "E-commerce"]
+  source_platform: string; // "reddit" | "hackernews"
+  enrichment_count: number;
+  last_enriched_at: string | null;
+}
 
-    # Six-dimensional scores
-    problem_severity: float (0.0-10.0)
-    market_size_indicator: Enum["niche", "mid", "large"]
-    monetization_potential: float (0.0-10.0)
-    technical_complexity: float (0.0-10.0)
-    competition_level: Enum["low", "medium", "high", "saturated"]
-    trend_direction: Enum["declining", "stable", "growing", "explosive"]
+// Filter state
+interface OpportunityFilters {
+  severity_min?: number;
+  severity_max?: number;
+  market_size?: ('niche' | 'mid' | 'large')[];
+  monetization_min?: number;
+  monetization_max?: number;
+  complexity_min?: number;
+  complexity_max?: number;
+  competition_level?: ('low' | 'medium' | 'high' | 'saturated')[];
+  trend_direction?: ('declining' | 'stable' | 'growing' | 'explosive')[];
+}
 
-    # Metadata
-    confidence_level: float (0.0-1.0)
-    trend_data: JSONB  # {timestamps: [], frequencies: [], sentiment: []}
-    geographic_spread: String[]  # ["North America", "Europe"]
-    affected_industries: String[]  # ["SaaS", "E-commerce"]
+// Sort options
+type SortField = 'severity' | 'monetization' | 'analyzed_at' | 'complexity';
+type SortOrder = 'asc' | 'desc';
 
-    # Timestamps
-    analyzed_at: DateTime
-    enrichment_count: int (default=0)
-    last_enriched_at: DateTime | None
-
-    # Relationships
-    pain_point: relationship("PainPoint", back_populates="opportunity")
+// API response
+interface OpportunitiesResponse {
+  opportunities: OpportunityListItem[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
 ```
 
-**Indexes**:
-- `idx_opportunity_severity` on `problem_severity DESC`
-- `idx_opportunity_analyzed_at` on `analyzed_at DESC`
-- `idx_opportunity_cursor` on `(id, analyzed_at)` for cursor pagination
-- `idx_opportunity_pain_point` on `pain_point_id` (nullable)
+**Backend Models** (already exist, no changes):
+- `Opportunity` SQLAlchemy model with all 6-dimensional scores
+- `OpportunityResponse` Pydantic schema for list endpoint
+- `OpportunityDetail` Pydantic schema for detail endpoint
 
-**Validation Rules**:
-- `problem_severity`, `monetization_potential`, `technical_complexity` MUST be 0.0-10.0
-- `confidence_level` MUST be 0.0-1.0
-- `enrichment_count` MUST be >= 0
-- `trend_data` JSONB MUST validate against schema (timestamps array, frequencies array)
+### 2. API Contracts (`contracts/`)
 
-See full schema in [data-model.md](./data-model.md).
+**Frontend Consumption** (backend already implemented):
 
-### 2. API Contracts (contracts/)
-
-**Analysis Trigger** (`contracts/opportunity_analysis.yaml`):
 ```yaml
-trigger:
-  event: unified_aggregation_complete
-  source: worker.tasks.unified_search.aggregate_and_extract_unified
-  payload:
-    search_run_id: UUID
-    pain_points_created: int
-
-analysis_task:
-  name: worker.tasks.opportunity_analysis.analyze_top_pain_points
-  input:
-    search_run_id: UUID
-    pain_point_ids: UUID[]  # Top 5-10 by relevance_score
-  output:
-    opportunities_created: int
-    analysis_duration_ms: int
-    coverage_rate: float  # opportunities_created / pain_point_ids.length
-```
-
-**Query API** (`contracts/opportunity_api.yaml`):
-```yaml
-GET /api/opportunities:
-  description: List opportunities with filtering and sorting
-  query_params:
-    severity_min: float (0.0-10.0, optional)
-    severity_max: float (0.0-10.0, optional)
-    market_size: enum["niche", "mid", "large"] (optional)
-    sort_by: enum["severity", "monetization", "analyzed_at"] (default="analyzed_at")
-    sort_order: enum["asc", "desc"] (default="desc")
-    cursor: string (opaque cursor for pagination, optional)
-    limit: int (default=12, max=50)
-  response:
-    opportunities: [
-      {
-        id: UUID
-        title: string  # Derived from pain_point.extracted_text (first 100 chars)
-        summary: string  # Derived from pain_point.extracted_text (first 300 chars)
-        problem_severity: float
-        market_size_indicator: enum
-        monetization_potential: float
-        technical_complexity: float
-        competition_level: enum
-        trend_direction: enum
-        confidence_level: float
-        analyzed_at: ISO8601
-      }
-    ]
+# contracts/opportunities_frontend.yaml
+OpportunitiesListEndpoint:
+  method: GET
+  path: /api/opportunities
+  query_parameters:
+    severity_min: number (0-10, optional)
+    severity_max: number (0-10, optional)
+    market_size: string (comma-separated: niche,mid,large, optional)
+    monetization_min: number (0-10, optional)
+    monetization_max: number (0-10, optional)
+    complexity_min: number (0-10, optional)
+    complexity_max: number (0-10, optional)
+    competition_level: string (comma-separated: low,medium,high,saturated, optional)
+    trend_direction: string (comma-separated: declining,stable,growing,explosive, optional)
+    sort_by: string (severity|monetization|analyzed_at|complexity, default: analyzed_at)
+    sort_order: string (asc|desc, default: desc)
+    cursor: string (Base64 encoded, optional)
+    limit: number (max 50, default 12)
+  response_200:
+    opportunities: OpportunityListItem[]
     next_cursor: string | null
     has_more: boolean
+  performance: <500ms p95
 
-GET /api/opportunities/{id}:
-  description: Get full opportunity details
-  response:
-    # All fields from list endpoint plus:
-    trend_data: object
-    geographic_spread: string[]
-    affected_industries: string[]
-    pain_point_id: UUID | null
-    enrichment_count: int
-    last_enriched_at: ISO8601 | null
+OpportunityDetailEndpoint:
+  method: GET
+  path: /api/opportunities/{id}
+  path_parameters:
+    id: string (UUID)
+  response_200:
+    OpportunityDetail (full object)
+  response_404:
+    detail: "Opportunity not found"
+  performance: <100ms p95
 ```
 
-See full OpenAPI specs in [contracts/](./contracts/).
+### 3. Component Tests (TDD approach)
 
-### 3. Contract Tests
+Create failing tests for:
+- `OpportunityCard.test.tsx`: Renders opportunity data, displays scores, handles click
+- `OpportunityGrid.test.tsx`: Renders grid of cards, handles empty state, loading state
+- `FilterPanel.test.tsx`: Renders filters, updates state on change, applies filters
+- `SortControls.test.tsx`: Renders sort dropdown, changes sort order
+- `useOpportunities.test.ts`: Fetches data, handles pagination, applies filters
 
-**Analysis Contract Test** (`tests/contract/test_opportunity_analysis_contract.py`):
-- Test unified aggregation completes → analysis task enqueued
-- Test analysis task receives correct pain_point_ids (top 5-10)
-- Test analysis output creates opportunities with all 6 scores
-- Test invalid pain_point_id → graceful skip (log warning, continue)
+### 4. Quickstart Validation (`quickstart.md`)
 
-**API Contract Test** (`tests/contract/test_opportunity_api_contract.py`):
-- Test GET /api/opportunities → returns 12 results with pagination cursor
-- Test filtering by severity_min → only results >= threshold
-- Test sorting by monetization DESC → highest scores first
-- Test cursor pagination → stateful iteration through all results
-- Test GET /api/opportunities/{id} → full details including trend_data
+User flow to test:
+1. Visit homepage → See opportunity grid with 12 results
+2. Apply filter (severity ≥7) → Grid updates instantly
+3. Sort by monetization DESC → Highest monetization opportunities first
+4. Click opportunity card → Navigate to detail page
+5. View full opportunity details → See all 6 scores + trend data
+6. Click "Load More" → Fetch next page (cursor pagination)
 
-Tests use pytest fixtures with sample data. **Expected**: All tests FAIL initially (no implementation yet).
+### 5. Update Agent Context (`CLAUDE.md`)
 
-### 4. Quickstart Guide
+Run `.specify/scripts/bash/update-agent-context.sh claude` to add:
+- New frontend routes: /opportunities, /opportunities/[id]
+- New components: OpportunityCard, OpportunityGrid, FilterPanel, SortControls
+- API integration: useOpportunities hook with SWR
+- Design system: IdeaBrowser-inspired minimalist UI
 
-**Local Testing** (see [quickstart.md](./quickstart.md)):
-```bash
-# 1. Run migrations
-cd apps/api && alembic upgrade head
-
-# 2. Start worker with analysis task enabled
-cd apps/worker && python worker.py
-
-# 3. Trigger search run (creates pain points)
-curl -X POST http://localhost:8000/api/reddit/search \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"topics": ["etsy seo"], "time_range": "1month"}'
-
-# 4. Wait for unified aggregation → analysis task runs automatically
-
-# 5. Query opportunities
-curl http://localhost:8000/api/opportunities?severity_min=7.0&limit=12
-
-# 6. Verify enrichment: Run same search again → opportunities.enrichment_count increments
-```
-
-**Validation Checks**:
-- [ ] Opportunities table populated after search completes
-- [ ] All 6 dimensional scores present (non-null)
-- [ ] Confidence level between 0.0-1.0
-- [ ] API returns 12 results with next_cursor
-- [ ] Enrichment count increments on duplicate signals
-
-### 5. Agent Context Update
-
-Running `.specify/scripts/bash/update-agent-context.sh claude` to update CLAUDE.md with Feature 003 context...
-
-Done! CLAUDE.md updated with new patterns (opportunities table, LLM analysis service, async enrichment task).
-
-**Output**: data-model.md, contracts/ (2 YAML specs), 5 failing tests, quickstart.md, CLAUDE.md updated.
+**Output**: data-model.md, contracts/, failing component tests, quickstart.md, updated CLAUDE.md
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
+- Load `.specify/templates/tasks-template.md` as base
+- Generate tasks from Phase 1 design docs (components, API integration, routes)
+- TDD order: Component tests → Component implementation → Integration
+- Frontend-only tasks (no backend changes)
 
-1. **Load artifacts**:
-   - Parse `contracts/opportunity_analysis.yaml` → analysis trigger tasks
-   - Parse `contracts/opportunity_api.yaml` → API endpoint tasks
-   - Parse `data-model.md` → database migration + model tasks
-   - Parse failing contract tests → test implementation tasks
-
-2. **Generate task sequence** (TDD order):
-   - **T001**: [P] Write Alembic migration for opportunities table schema
-   - **T002**: [P] Create Opportunity model with 6-dimensional fields + validation
-   - **T003**: [P] Write contract test for analysis trigger (should FAIL initially)
-   - **T004**: [P] Write contract test for API endpoints (should FAIL initially)
-   - **T005**: Create OpportunityAnalysisService with LLM prompt templates
-   - **T006**: Implement six-dimensional scoring logic (severity, market size, etc.)
-   - **T007**: Create RQ task `analyze_top_pain_points` in worker/tasks/
-   - **T008**: Update `unified_search.py` to enqueue analysis task on completion
-   - **T009**: Implement GET /api/opportunities with filtering + cursor pagination
-   - **T010**: Implement GET /api/opportunities/{id} with full details
-   - **T011**: Run contract tests → should PASS now
-   - **T012**: Write integration test for full search → analysis → query pipeline
-   - **T013**: Implement accumulative enrichment logic (duplicate detection + merge)
-   - **T014**: Add structured logging for analysis coverage tracking
-   - **T015**: Performance test: verify <500ms p95 for API queries
-   - **T016**: Run quickstart validation checklist
+**Estimated Tasks**:
+1. Install next-themes dependency [P]
+2. Create TypeScript interfaces (data-model.md) [P]
+3. Configure ThemeProvider in root layout [depends on T001]
+4. Create ThemeToggle component with dark mode switch [depends on T003]
+5. Add dark mode Tailwind classes to tailwind.config [P]
+6. Write OpportunityCard component test [P]
+7. Implement OpportunityCard component with dark mode styles [depends on T006]
+8. Write OpportunityGrid component test [P]
+9. Implement OpportunityGrid component with dark mode styles [depends on T008]
+10. Write FilterPanel component test [P]
+11. Implement FilterPanel component with dark mode styles [depends on T010]
+12. Write SortControls component test [P]
+13. Implement SortControls component with dark mode styles [depends on T012]
+14. Write useOpportunities hook test [P]
+15. Implement useOpportunities hook (SWR integration) [depends on T014]
+16. Update API client lib/api.ts [P]
+17. Create /opportunities page route with ThemeToggle [depends on T009, T011, T013, T015]
+18. Create /opportunities/[id] detail page route with dark mode [depends on T007, T015]
+19. Redesign homepage with dark mode support [depends on T017]
+20. Add responsive styles (mobile/tablet/desktop + dark mode) [depends on T017]
+21. Test theme persistence and system preference detection [depends on T020]
+22. Run quickstart validation [depends on T021]
+23. Performance testing (<500ms API, <1s page load, dark mode toggle) [depends on T022]
 
 **Ordering Strategy**:
+- [P] = Parallelizable (independent files)
+- Components before pages (pages compose components)
 - Tests before implementation (TDD)
-- Database layer (migration, model) before business logic
-- Service layer before API/task layer
-- Contract tests verify integration between layers
-- [P] = parallelizable (independent files/modules)
+- API integration early (needed by all data-dependent components)
 
-**Estimated Output**: 16 numbered, ordered tasks in tasks.md
+**Estimated Output**: ~23 numbered, ordered tasks in tasks.md (dark mode adds 5 tasks)
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 
@@ -342,30 +456,37 @@ Done! CLAUDE.md updated with new patterns (opportunities table, LLM analysis ser
 **Phase 5**: Validation (run tests, execute quickstart.md, performance validation)
 
 ## Complexity Tracking
-
-### Justified Deviations
+*No constitutional violations detected—no entries needed*
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Admin dashboard deferred (Principle VII) | MVP focuses on backend infrastructure; structured logging provides sufficient observability for validation | Building dashboard would delay MVP by 2+ weeks; logging covers core monitoring needs for Phase 1 |
-| JSONB for trend_data | Flexible schema needed for time-series analysis; supports future analytics without migration | Separate trend tables would require complex joins; JSONB enables rapid iteration |
+| N/A       | N/A        | N/A                                 |
 
 ## Progress Tracking
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [X] Phase 0: Research complete (/plan command)
-- [X] Phase 1: Design complete (/plan command)
-- [X] Phase 2: Task planning complete (/plan command - describe approach only)
-- [ ] Phase 3: Tasks generated (/tasks command)
-- [ ] Phase 4: Implementation complete
-- [ ] Phase 5: Validation passed
+- [x] Phase 0: Research complete (/plan command)
+- [x] Phase 1: Design complete (/plan command)
+- [x] Phase 2: Task planning approach documented (/plan command)
+- [ ] Phase 3: Tasks generated (/tasks command - READY)
+- [ ] Phase 4: Implementation (manual execution)
+- [ ] Phase 5: Validation (manual testing)
 
 **Gate Status**:
-- [X] Initial Constitution Check: PASS
-- [X] Post-Design Constitution Check: PASS
-- [X] All NEEDS CLARIFICATION resolved (via /clarify session 2025-10-08)
-- [X] Complexity deviations documented
+- [x] Initial Constitution Check: PASS
+- [x] Post-Design Constitution Check: PASS
+- [x] All NEEDS CLARIFICATION resolved (spec has Session 2025-10-08 clarifications)
+- [x] Complexity deviations documented (none—all principles satisfied)
+
+**Artifacts Generated**:
+- [x] plan.md (this file)
+- [x] research.md (frontend UI/UX research appended)
+- [x] Data models defined inline (TypeScript interfaces in plan.md)
+- [x] API contracts documented inline (YAML spec in plan.md)
+- [x] Phase 2 task strategy documented
+
+**Next Command**: Run `/tasks` to generate tasks.md with ~23 ordered implementation tasks (including dark mode)
 
 ---
 *Based on Constitution v1.0.0 - See `.specify/memory/constitution.md`*
