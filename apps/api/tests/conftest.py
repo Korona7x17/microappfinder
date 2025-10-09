@@ -12,8 +12,14 @@ from datetime import datetime, timedelta
 @pytest.fixture(scope="session")
 def db_engine():
     """Create test database engine"""
-    # Use in-memory SQLite for tests
-    engine = create_engine("sqlite:///:memory:")
+    # Use PostgreSQL test database (same as dev but separate schema)
+    # This is required because models use PostgreSQL-specific types (JSONB, UUID, etc.)
+    import os
+    test_db_url = os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql+psycopg://postgres:postgres@localhost:5432/microappfinder_test"
+    )
+    engine = create_engine(test_db_url)
     return engine
 
 
@@ -37,7 +43,7 @@ def db_session(db_engine):
 def client(db_session):
     """Create FastAPI test client"""
     from app.main import app
-    from app.database import get_db
+    from app.core.database import get_db
 
     # Override database dependency
     def override_get_db():

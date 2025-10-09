@@ -1,0 +1,195 @@
+# Opportunity API Contracts
+
+contract_version: 1.0.0
+feature: 003-multi-dimensional-opportunity
+date: 2025-10-08
+
+## List Opportunities
+
+endpoint: GET /api/opportunities
+authentication: none
+description: List opportunities with filtering, sorting, and cursor pagination
+
+query_parameters:
+  severity_min:
+    type: float
+    required: false
+    range: [0.0, 10.0]
+    description: Minimum problem severity threshold
+  severity_max:
+    type: float
+    required: false
+    range: [0.0, 10.0]
+    description: Maximum problem severity threshold
+  market_size:
+    type: enum
+    required: false
+    values: [niche, mid, large]
+    description: Filter by market size indicator
+  competition_level:
+    type: enum
+    required: false
+    values: [low, medium, high, saturated]
+    description: Filter by competition level
+  trend_direction:
+    type: enum
+    required: false
+    values: [declining, stable, growing, explosive]
+    description: Filter by trend direction
+  sort_by:
+    type: enum
+    required: false
+    default: analyzed_at
+    values: [severity, monetization, analyzed_at]
+    description: Sort field
+  sort_order:
+    type: enum
+    required: false
+    default: desc
+    values: [asc, desc]
+    description: Sort direction
+  cursor:
+    type: string
+    required: false
+    description: Opaque pagination cursor (Base64-encoded JSON)
+  limit:
+    type: integer
+    required: false
+    default: 12
+    range: [1, 50]
+    description: Results per page
+
+response:
+  status: 200
+  content_type: application/json
+  schema:
+    opportunities:
+      type: array
+      items:
+        id:
+          type: UUID
+        title:
+          type: string
+          description: First 100 chars from pain_point.extracted_text
+        summary:
+          type: string
+          description: First 300 chars from pain_point.extracted_text
+        problem_severity:
+          type: float
+          range: [0.0, 10.0]
+        market_size_indicator:
+          type: enum
+          values: [niche, mid, large]
+        monetization_potential:
+          type: float
+          range: [0.0, 10.0]
+        technical_complexity:
+          type: float
+          range: [0.0, 10.0]
+        competition_level:
+          type: enum
+          values: [low, medium, high, saturated]
+        trend_direction:
+          type: enum
+          values: [declining, stable, growing, explosive]
+        confidence_level:
+          type: float
+          range: [0.0, 1.0]
+        analyzed_at:
+          type: string
+          format: ISO8601
+    next_cursor:
+      type: string | null
+      description: Cursor for next page (null if last page)
+    has_more:
+      type: boolean
+      description: True if more results available
+
+performance:
+  p95_latency: <500ms
+  p99_latency: <1000ms
+
+---
+
+## Get Opportunity Details
+
+endpoint: GET /api/opportunities/{id}
+authentication: none
+description: Retrieve full opportunity details including trend data
+
+path_parameters:
+  id:
+    type: UUID
+    required: true
+    description: Opportunity ID
+
+response:
+  status: 200
+  content_type: application/json
+  schema:
+    id:
+      type: UUID
+    title:
+      type: string
+    summary:
+      type: string
+    problem_severity:
+      type: float
+      range: [0.0, 10.0]
+    market_size_indicator:
+      type: enum
+      values: [niche, mid, large]
+    monetization_potential:
+      type: float
+      range: [0.0, 10.0]
+    technical_complexity:
+      type: float
+      range: [0.0, 10.0]
+    competition_level:
+      type: enum
+      values: [low, medium, high, saturated]
+    trend_direction:
+      type: enum
+      values: [declining, stable, growing, explosive]
+    confidence_level:
+      type: float
+      range: [0.0, 1.0]
+    trend_data:
+      type: object | null
+      schema:
+        timestamps:
+          type: array[string]
+          format: ISO8601
+        frequencies:
+          type: array[integer]
+        sentiment:
+          type: array[float]
+          range: [-1.0, 1.0]
+    geographic_spread:
+      type: array[string] | null
+    affected_industries:
+      type: array[string] | null
+    pain_point_id:
+      type: UUID | null
+      description: Null if pain point deleted after 48h TTL
+    enrichment_count:
+      type: integer
+      description: Number of times opportunity enriched
+    last_enriched_at:
+      type: string | null
+      format: ISO8601
+    analyzed_at:
+      type: string
+      format: ISO8601
+
+error_responses:
+  404:
+    description: Opportunity not found
+    schema:
+      detail:
+        type: string
+        example: "Opportunity not found"
+
+performance:
+  p95_latency: <100ms
+  p99_latency: <200ms

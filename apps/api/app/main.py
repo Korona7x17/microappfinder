@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.config import settings
-from app.routers import runs, signals, clusters, briefs, exports, auth, reddit_search
+from app.routers import runs, signals, clusters, briefs, exports, auth, reddit_search, opportunities
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +45,7 @@ app.include_router(signals.router, prefix="/api/signals", tags=["signals"])
 app.include_router(clusters.router, prefix="/api/clusters", tags=["clusters"])
 app.include_router(briefs.router, prefix="/api/briefs", tags=["briefs"])
 app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
+app.include_router(opportunities.router, prefix="/api/opportunities", tags=["opportunities"])
 
 
 @app.get("/")

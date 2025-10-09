@@ -1,0 +1,60 @@
+# Opportunity Analysis Task Contract
+
+contract_version: 1.0.0
+feature: 003-multi-dimensional-opportunity
+date: 2025-10-08
+
+## Trigger Event
+
+trigger:
+  event: unified_aggregation_complete
+  source: worker.tasks.unified_search.aggregate_and_extract_unified
+  payload:
+    search_run_id:
+      type: UUID
+      description: ID of completed search run
+    pain_points_created:
+      type: integer
+      description: Number of pain points extracted
+
+## Analysis Task
+
+task:
+  name: worker.tasks.opportunity_analysis.analyze_top_pain_points
+  queue: default
+  timeout: 300  # 5 minutes
+  retry_on_failure: true
+  max_retries: 2
+
+  input:
+    search_run_id:
+      type: UUID
+      required: true
+      description: Search run to analyze
+    pain_point_ids:
+      type: array[UUID]
+      required: true
+      description: Top 5-10 pain points by relevance_score
+      min_length: 1
+      max_length: 10
+
+  output:
+    opportunities_created:
+      type: integer
+      description: Number of opportunities successfully created
+    analysis_duration_ms:
+      type: integer
+      description: Total analysis time in milliseconds
+    coverage_rate:
+      type: float
+      description: opportunities_created / pain_point_ids.length
+      range: [0.0, 1.0]
+
+## Implementation Chain
+
+chaining:
+  - job: unified_search.aggregate_and_extract_unified
+    on_success: enqueue_analysis_task
+    depends_on: [reddit_search, hackernews_search]
+  - job: opportunity_analysis.analyze_top_pain_points
+    depends_on: [unified_search.aggregate_and_extract_unified]

@@ -21,6 +21,16 @@ from .pain_point import PainPoint
 # HackerNews Integration models (Feature 002)
 from .hackernews_item import HackerNewsItem
 
+# Multi-Dimensional Opportunity Analysis models (Feature 003)
+from .opportunity import (
+    Opportunity,
+    OpportunityScores,
+    TrendData,
+    OpportunityCreate,
+    OpportunityResponse,
+    OpportunityDetail,
+)
+
 __all__ = [
     "Base",
     # Legacy
@@ -37,4 +47,11 @@ __all__ = [
     "PainPoint",
     # Feature 002
     "HackerNewsItem",
+    # Feature 003
+    "Opportunity",
+    "OpportunityScores",
+    "TrendData",
+    "OpportunityCreate",
+    "OpportunityResponse",
+    "OpportunityDetail",
 ]

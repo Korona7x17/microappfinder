@@ -19,6 +19,9 @@ from app.models.pain_point import PainPoint
 from app.services.unified_search_service import UnifiedSearchService
 from app.services.deduplication_service import DeduplicationService
 
+# RQ job chaining
+from rq import get_current_job, Queue
+
 # Pipeline components
 from worker.pipeline.extractor import PainPointExtractor
 from textblob import TextBlob
@@ -26,6 +29,7 @@ from textblob import TextBlob
 # Feature 003: AI-powered opportunity detection
 from app.services.opportunity_filter_service import OpportunityFilterService
 from app.services.llm_analysis_service import LLMAnalysisService
+from worker.tasks.opportunity_analysis import analyze_top_pain_points
 
 
 def aggregate_and_extract_unified(search_run_id: str):
@@ -262,6 +266,29 @@ def aggregate_and_extract_unified(search_run_id: str):
         search_run.pain_points_count = pain_points_count
 
         db.commit()
+
+        # Step 8: Enqueue opportunity analysis task (T008)
+        # Query top 10 pain points by relevance score for LLM analysis
+        top_pain_points = db.query(PainPoint).filter(
+            PainPoint.search_run_id == search_run_id
+        ).order_by(
+            PainPoint.relevance_score.desc()
+        ).limit(10).all()
+
+        # Convert to UUID objects for task parameters
+        pain_point_ids = [pp.id for pp in top_pain_points]
+
+        # Chain opportunity analysis after this task completes
+        if pain_point_ids:
+            queue = Queue(connection=redis_client)
+            queue.enqueue(
+                analyze_top_pain_points,
+                search_run_id=uuid_lib.UUID(search_run_id),
+                pain_point_ids=pain_point_ids,
+                depends_on=get_current_job(),
+                job_timeout='5m'
+            )
+            print(f"Enqueued opportunity analysis for search {search_run_id}")
 
         print(f"=== Unified aggregation complete: {pain_points_count} pain points ===")
 

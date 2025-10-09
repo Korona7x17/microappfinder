@@ -114,6 +114,7 @@ class PainPoint(Base):
 
     # Relationships
     search_run = relationship("SearchRun", back_populates="pain_points")
+    opportunity = relationship("Opportunity", back_populates="pain_point", uselist=False)
 
     def __repr__(self):
         return f"<PainPoint(id={self.id}, relevance_score={self.relevance_score}, extracted_text={self.extracted_text[:50]}...)>"
