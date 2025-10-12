@@ -1,4 +1,4 @@
-.PHONY: help install dev start stop logs clean migrate test
+.PHONY: help install dev start stop logs clean migrate test pre-commit-install pre-commit-run
 
 help:
 	@echo "MicroAppFinder - Available commands:"
@@ -10,6 +10,8 @@ help:
 	@echo "  make migrate   - Run database migrations"
 	@echo "  make clean     - Clean up containers and volumes"
 	@echo "  make test      - Run tests"
+	@echo "  make pre-commit-install - Install pre-commit hooks (formatting & secret scan)"
+	@echo "  make pre-commit-run     - Run pre-commit on all files"
 
 install:
 	@echo "Installing dependencies..."
@@ -58,3 +60,15 @@ test:
 	@echo "Running tests..."
 	cd apps/api && pytest
 	cd apps/web && npm test
+
+pre-commit-install:
+	@echo "Installing pre-commit hooks..."
+	pip install pre-commit detect-secrets
+	pre-commit install
+	@echo "Generating detect-secrets baseline..."
+	detect-secrets scan > .secrets.baseline || true
+	@echo "Done. You can run 'make pre-commit-run' to scan the repo."
+
+pre-commit-run:
+	@echo "Running pre-commit on all files..."
+	pre-commit run --all-files || true

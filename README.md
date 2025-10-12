@@ -183,6 +183,16 @@ cd apps/web
 npm test
 ```
 
+## 🔒 Pre-commit & Secret Scanning
+
+```bash
+# Install and set up hooks
+make pre-commit-install
+
+# Run hooks on all files (formatting + secret scan)
+make pre-commit-run
+```
+
 ## 📚 Documentation
 
 See the `docs/` directory for detailed documentation:
